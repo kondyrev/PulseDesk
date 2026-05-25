@@ -1,29 +1,28 @@
+import { Container } from "@/components/shared/container";
+import { PremiumCard } from "@/components/shared/premium-card";
+import { Section } from "@/components/shared/section";
+import { SectionHeading } from "@/components/shared/section-heading";
+
 function FaqItem({ question, answer }: { question: string; answer: string }) {
   return (
-    <div className="bg-white border border-black/[0.04] rounded-[32px] p-8 shadow-sm">
-      <h3 className="text-2xl font-bold tracking-tight mb-4">{question}</h3>
+    <PremiumCard className="p-8">
+      <h3 className="mb-4 text-2xl font-bold tracking-tight">{question}</h3>
 
-      <p className="text-zinc-500 text-lg leading-relaxed">{answer}</p>
-    </div>
+      <p className="text-lg leading-relaxed text-zinc-500">{answer}</p>
+    </PremiumCard>
   );
 }
 
 export function FaqSection() {
   return (
-    <section
-      id="faq"
-      className="py-32 bg-[#f5f5f7] border-t border-black/[0.04]"
-    >
-      <div className="max-w-5xl mx-auto px-6">
-        <div className="text-center mb-20">
-          <div className="text-sm uppercase tracking-[0.3em] text-zinc-400 mb-6">
-            FAQ
-          </div>
-
-          <h2 className="text-5xl md:text-7xl font-black tracking-[-0.05em] leading-[0.95]">
-            Частые вопросы.
-          </h2>
-        </div>
+    <Section id="faq" muted>
+      <Container className="max-w-5xl">
+        <SectionHeading
+          eyebrow="FAQ"
+          title="Частые вопросы."
+          align="center"
+          className="mb-20"
+        />
 
         <div className="space-y-6">
           <FaqItem
@@ -46,7 +45,7 @@ export function FaqSection() {
             answer="Да. Интерфейс, тарифы и сценарии использования ориентированы на российские SaaS, digital-команды и сервисные компании."
           />
         </div>
-      </div>
-    </section>
+      </Container>
+    </Section>
   );
 }

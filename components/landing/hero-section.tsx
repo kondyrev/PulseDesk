@@ -7,7 +7,7 @@ export function HeroSection() {
       <div className="absolute top-0 left-0 w-[640px] h-[640px] bg-blue-200/30 blur-3xl rounded-full" />
       <div className="absolute top-0 right-0 w-[640px] h-[640px] bg-violet-200/30 blur-3xl rounded-full" />
 
-      <div className="max-w-7xl mx-auto px-6 pt-28 pb-28 relative z-10">
+      <div className="max-w-7xl mx-auto px-6 pt-40 pb-28 relative z-10">
         <div className="max-w-5xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-white border border-black/[0.04] shadow-sm text-sm text-zinc-600 mb-8">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />

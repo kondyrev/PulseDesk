@@ -1,3 +1,8 @@
+import { Container } from "@/components/shared/container";
+import { PremiumCard } from "@/components/shared/premium-card";
+import { Section } from "@/components/shared/section";
+import { SectionHeading } from "@/components/shared/section-heading";
+
 function PricingCard({
   name,
   price,
@@ -15,22 +20,22 @@ function PricingCard({
 }) {
   if (popular) {
     return (
-      <div className="rounded-[36px] p-10 bg-black text-white relative overflow-hidden shadow-2xl scale-[1.03]">
-        <div className="absolute top-6 right-6 px-4 py-2 rounded-full bg-white text-black text-xs font-bold">
+      <div className="relative scale-[1.03] overflow-hidden rounded-[36px] bg-black p-10 text-white shadow-2xl">
+        <div className="absolute right-6 top-6 rounded-full bg-white px-4 py-2 text-xs font-bold text-black">
           Популярный
         </div>
 
-        <div className="text-zinc-400 font-medium mb-5">{name}</div>
-        <div className="text-6xl font-black tracking-tight mb-3">{price}</div>
-        <div className="text-zinc-500 mb-10">{description}</div>
+        <div className="mb-5 font-medium text-zinc-400">{name}</div>
+        <div className="mb-3 text-6xl font-black tracking-tight">{price}</div>
+        <div className="mb-10 text-zinc-500">{description}</div>
 
-        <ul className="space-y-5 text-zinc-300 mb-12 text-lg">
+        <ul className="mb-12 space-y-5 text-lg text-zinc-300">
           {features.map((feature) => (
             <li key={feature}>✓ {feature}</li>
           ))}
         </ul>
 
-        <button className="w-full py-5 rounded-3xl bg-white text-black hover:opacity-90 transition font-semibold">
+        <button className="w-full rounded-3xl bg-white py-5 font-semibold text-black transition hover:opacity-90">
           {button}
         </button>
       </div>
@@ -38,48 +43,42 @@ function PricingCard({
   }
 
   return (
-    <div className="bg-white border border-black/[0.04] rounded-[36px] p-10 shadow-sm hover:-translate-y-1 hover:shadow-xl transition">
-      <div className="text-zinc-400 font-medium mb-5">{name}</div>
-      <div className="text-6xl font-black tracking-tight mb-3">{price}</div>
-      <div className="text-zinc-500 mb-10">{description}</div>
+    <PremiumCard className="rounded-[36px] p-10">
+      <div className="mb-5 font-medium text-zinc-400">{name}</div>
+      <div className="mb-3 text-6xl font-black tracking-tight">{price}</div>
+      <div className="mb-10 text-zinc-500">{description}</div>
 
-      <ul className="space-y-5 text-zinc-600 mb-12 text-lg">
+      <ul className="mb-12 space-y-5 text-lg text-zinc-600">
         {features.map((feature) => (
           <li key={feature}>✓ {feature}</li>
         ))}
       </ul>
 
-      <button className="w-full py-5 rounded-3xl bg-zinc-100 hover:bg-zinc-200 transition font-semibold">
+      <button className="w-full rounded-3xl bg-zinc-100 py-5 font-semibold transition hover:bg-zinc-200">
         {button}
       </button>
-    </div>
+    </PremiumCard>
   );
 }
 
 export function PricingSection() {
   return (
-    <section
-      id="pricing"
-      className="py-32 bg-white border-t border-black/[0.04]"
-    >
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center max-w-4xl mx-auto mb-24">
-          <div className="text-sm uppercase tracking-[0.3em] text-zinc-400 mb-6">
-            Тарифы
-          </div>
+    <Section id="pricing">
+      <Container>
+        <SectionHeading
+          eyebrow="Тарифы"
+          title={
+            <>
+              Подходит стартапам
+              <br />и большим командам.
+            </>
+          }
+          description="Начните бесплатно и масштабируйтесь по мере роста поддержки."
+          align="center"
+          className="mb-24"
+        />
 
-          <h2 className="text-5xl md:text-7xl font-black tracking-[-0.05em] leading-[0.95] mb-8">
-            Подходит стартапам
-            <br />
-            и большим командам.
-          </h2>
-
-          <p className="text-2xl text-zinc-500 leading-relaxed">
-            Начните бесплатно и масштабируйтесь по мере роста поддержки.
-          </p>
-        </div>
-
-        <div className="grid lg:grid-cols-3 gap-8 items-stretch">
+        <div className="grid items-stretch gap-8 lg:grid-cols-3">
           <PricingCard
             name="Starter"
             price="0₽"
@@ -123,7 +122,7 @@ export function PricingSection() {
             ]}
           />
         </div>
-      </div>
-    </section>
+      </Container>
+    </Section>
   );
 }

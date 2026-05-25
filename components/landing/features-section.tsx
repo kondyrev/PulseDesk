@@ -1,18 +1,8 @@
-function Badge({
-  className,
-  children,
-}: {
-  className: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <span
-      className={`px-4 py-2 rounded-full text-sm font-semibold ${className}`}
-    >
-      {children}
-    </span>
-  );
-}
+import { Container } from "@/components/shared/container";
+import { Pill } from "@/components/shared/pill";
+import { PremiumCard } from "@/components/shared/premium-card";
+import { Section } from "@/components/shared/section";
+import { SectionHeading } from "@/components/shared/section-heading";
 
 function FeatureCard({
   eyebrow,
@@ -26,49 +16,41 @@ function FeatureCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-white border border-black/[0.04] rounded-[36px] p-10 shadow-sm hover:-translate-y-1 hover:shadow-xl transition">
-      <div className="text-sm text-zinc-400 mb-5 font-medium">{eyebrow}</div>
+    <PremiumCard className="rounded-[36px] p-10">
+      <div className="mb-5 text-sm font-medium text-zinc-400">{eyebrow}</div>
 
-      <h3 className="text-4xl font-black tracking-tight mb-5">{title}</h3>
+      <h3 className="mb-5 text-4xl font-black tracking-tight">{title}</h3>
 
-      <p className="text-zinc-500 text-lg leading-relaxed mb-8">{text}</p>
+      <p className="mb-8 text-lg leading-relaxed text-zinc-500">{text}</p>
 
       {children}
-    </div>
+    </PremiumCard>
   );
 }
 
 export function FeaturesSection() {
   return (
-    <section
-      id="features"
-      className="py-32 bg-[#f5f5f7] border-t border-black/[0.04]"
-    >
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="max-w-4xl mb-20">
-          <div className="text-sm uppercase tracking-[0.3em] text-zinc-400 mb-6">
-            Возможности
-          </div>
+    <Section id="features" muted>
+      <Container>
+        <SectionHeading
+          eyebrow="Возможности"
+          title={
+            <>
+              AI встроен
+              <br />в сам workflow.
+            </>
+          }
+          description="PulseDesk не добавляет AI «сверху». Он становится частью ежедневной работы поддержки."
+          className="mb-20"
+        />
 
-          <h2 className="text-5xl md:text-7xl font-black tracking-[-0.05em] leading-[0.95] mb-8">
-            AI встроен
-            <br />
-            в сам workflow.
-          </h2>
-
-          <p className="text-2xl text-zinc-500 leading-relaxed max-w-3xl">
-            PulseDesk не добавляет AI «сверху». Он становится частью ежедневной
-            работы поддержки.
-          </p>
-        </div>
-
-        <div className="grid lg:grid-cols-2 gap-6">
+        <div className="grid gap-6 lg:grid-cols-2">
           <FeatureCard
             eyebrow="AI Copilot"
             title="AI-подсказки ответов"
             text="AI анализирует контекст тикета, эмоции клиента и историю переписки, чтобы предложить готовый ответ."
           >
-            <div className="rounded-3xl bg-zinc-100 p-6 text-zinc-600 leading-relaxed">
+            <div className="rounded-3xl bg-zinc-100 p-6 leading-relaxed text-zinc-600">
               «Здравствуйте! Мы уже проверяем проблему с оплатой и вернемся с
               обновлением в ближайшее время.»
             </div>
@@ -100,18 +82,16 @@ export function FeaturesSection() {
             title="Определение эмоций и срочности"
             text="PulseDesk подсвечивает раздраженных клиентов и критические обращения до того, как они перерастут в проблему."
           >
-            <div className="flex gap-3 flex-wrap">
-              <Badge className="bg-red-100 text-red-600">
+            <div className="flex flex-wrap gap-3">
+              <Pill className="bg-red-100 text-red-600">
                 Недовольный клиент
-              </Badge>
-
-              <Badge className="bg-orange-100 text-orange-600">
+              </Pill>
+              <Pill className="bg-orange-100 text-orange-600">
                 Запрос возврата
-              </Badge>
-
-              <Badge className="bg-blue-100 text-blue-600">
+              </Pill>
+              <Pill className="bg-blue-100 text-blue-600">
                 Высокий приоритет
-              </Badge>
+              </Pill>
             </div>
           </FeatureCard>
 
@@ -121,13 +101,13 @@ export function FeaturesSection() {
             text="Операторы, администраторы и AI работают в одном пространстве: тикеты, сообщения, файлы и контекст доступны сразу."
           >
             <div className="flex -space-x-4">
-              <div className="w-14 h-14 rounded-full bg-zinc-900 border-4 border-white" />
-              <div className="w-14 h-14 rounded-full bg-zinc-600 border-4 border-white" />
-              <div className="w-14 h-14 rounded-full bg-zinc-300 border-4 border-white" />
+              <div className="h-14 w-14 rounded-full border-4 border-white bg-zinc-900" />
+              <div className="h-14 w-14 rounded-full border-4 border-white bg-zinc-600" />
+              <div className="h-14 w-14 rounded-full border-4 border-white bg-zinc-300" />
             </div>
           </FeatureCard>
         </div>
-      </div>
-    </section>
+      </Container>
+    </Section>
   );
 }

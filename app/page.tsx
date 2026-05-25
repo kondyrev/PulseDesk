@@ -9,7 +9,7 @@ import { PricingSection } from "@/components/landing/pricing-section";
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-[#f5f5f7] text-black overflow-hidden">
+    <main className="min-h-screen bg-[#f5f5f7] text-black overflow-x-hidden">
       <Navbar />
       <HeroSection />
       <PainSection />
