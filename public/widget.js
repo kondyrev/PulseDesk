@@ -13,6 +13,12 @@
   const apiBase =
     script.dataset.apiBase || "http://localhost:3000";
 
+  let widgetSettings = {
+    company_name: "",
+    title: "Поддержка",
+    subtitle: "Обычно отвечаем в течение нескольких минут",
+  };
+
   const styles = document.createElement("style");
 
   styles.innerHTML = `
@@ -231,6 +237,49 @@
   const launcher = root.querySelector(".pd-launcher");
   const panel = root.querySelector(".pd-panel");
   const body = root.querySelector(".pd-body");
+  const titleElement = root.querySelector(".pd-title");
+  const subtitleElement = root.querySelector(".pd-subtitle");
+
+  function applyWidgetSettings() {
+    const companyName = widgetSettings.company_name
+      ? widgetSettings.company_name.trim()
+      : "";
+
+    const title = widgetSettings.title || "Поддержка";
+
+    titleElement.innerText = companyName
+      ? `${title} ${companyName}`
+      : title;
+
+    subtitleElement.innerText =
+      widgetSettings.subtitle ||
+      "Обычно отвечаем в течение нескольких минут";
+  }
+
+  async function loadWidgetSettings() {
+    try {
+      const response = await fetch(
+        `${apiBase}/api/widget/settings?key=${publicWidgetKey}`
+      );
+
+      const data = await response.json();
+
+      if (!data.ok || !data.settings) {
+        applyWidgetSettings();
+        return;
+      }
+
+      widgetSettings = {
+        ...widgetSettings,
+        ...data.settings,
+      };
+
+      applyWidgetSettings();
+    } catch (error) {
+      console.error("PulseDesk settings error:", error);
+      applyWidgetSettings();
+    }
+  }
 
   launcher.addEventListener("click", () => {
     panel.style.display =
@@ -468,6 +517,8 @@
       setInterval(loadMessages, 5000);
     });
   }
+
+  loadWidgetSettings();
 
   if (ticketId) {
     loadMessages();
