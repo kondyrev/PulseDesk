@@ -5,6 +5,8 @@ import { ArrowUpRight, Inbox } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 
+import { TicketsAutoRefresh } from "@/components/dashboard/tickets/tickets-auto-refresh";
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -49,6 +51,7 @@ export default async function TicketsPage() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      <TicketsAutoRefresh />
       <div className="border-b border-black/5 bg-white px-8 py-5">
         <h1 className="text-2xl font-semibold tracking-tight">Обращения</h1>
 

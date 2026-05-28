@@ -44,7 +44,7 @@
       right: 24px;
       bottom: 104px;
       width: 380px;
-      height: 680px;
+      min-height: 0;
       background: #fff;
       border-radius: 28px;
       overflow: hidden;
@@ -282,6 +282,9 @@
       return;
     }
 
+    panel.classList.remove("pd-panel-form");
+    panel.classList.add("pd-panel-chat");
+
     const existingChat = body.querySelector(".pd-chat");
 
     if (!existingChat) {
@@ -370,6 +373,8 @@
   }
 
   function renderForm() {
+    panel.classList.remove("pd-panel-chat");
+    panel.classList.add("pd-panel-form");
     body.innerHTML = `
       <div class="pd-form">
         <input
