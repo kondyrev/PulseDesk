@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { TicketReplyForm } from "@/components/dashboard/tickets/ticket-reply-form";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -57,7 +58,9 @@ export default async function TicketDetailsPage({
         <div className="border-b border-black/5 bg-white px-8 py-6">
           <div className="mb-3 flex items-center gap-2">
             <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">
-              {ticket.status === "new" ? "Новое" : ticket.status}
+              {ticket.status === "new"
+                ? "Новое"
+                : ticket.status}
             </span>
 
             <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600">
@@ -67,7 +70,9 @@ export default async function TicketDetailsPage({
             </span>
 
             <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600">
-              {ticket.source === "widget" ? "Виджет" : ticket.source}
+              {ticket.source === "widget"
+                ? "Виджет"
+                : ticket.source}
             </span>
           </div>
 
@@ -83,23 +88,43 @@ export default async function TicketDetailsPage({
 
         <div className="flex-1 space-y-6 overflow-y-auto p-8">
           {messages?.map((message) => {
-            const isCustomer = message.sender_type === "customer";
+            const isCustomer =
+              message.sender_type === "customer";
 
             return (
               <div
                 key={message.id}
-                className={`flex ${isCustomer ? "justify-start" : "justify-end"}`}
+                className={`flex w-full ${
+                  isCustomer
+                    ? "justify-start"
+                    : "justify-end"
+                }`}
               >
                 <div
-                  className={`max-w-2xl rounded-[28px] px-6 py-5 shadow-sm ${
-                    isCustomer ? "bg-white" : "bg-black text-white"
+                  className={`w-fit max-w-2xl rounded-[28px] px-6 py-5 shadow-sm ${
+                    isCustomer
+                      ? "bg-white"
+                      : "bg-black text-white"
                   }`}
                 >
                   <div className="mb-3 text-xs font-semibold uppercase tracking-wide opacity-50">
-                    {isCustomer ? "Клиент" : "Оператор"}
+                    {isCustomer
+                      ? "Клиент"
+                      : "Оператор"}
                   </div>
 
-                  <div className="leading-relaxed">{message.content}</div>
+                  <div className="leading-relaxed">
+                    {message.content}
+                  </div>
+
+                  {message.page_url ? (
+                    <div className="mt-4 border-t border-black/5 pt-3 text-xs text-zinc-400">
+                      Страница обращения:
+                      <div className="mt-1 break-all">
+                        {message.page_url}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             );
@@ -107,22 +132,7 @@ export default async function TicketDetailsPage({
         </div>
 
         <div className="border-t border-black/5 bg-white p-6">
-          <div className="rounded-[32px] border border-black/5 bg-[#f6f7f8] p-4">
-            <textarea
-              placeholder="Напишите ответ клиенту..."
-              className="h-32 w-full resize-none bg-transparent text-sm outline-none"
-            />
-
-            <div className="mt-4 flex items-center justify-between">
-              <button className="rounded-2xl bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-200">
-                Предложить ответ
-              </button>
-
-              <button className="rounded-2xl bg-black px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90">
-                Отправить
-              </button>
-            </div>
-          </div>
+          <TicketReplyForm ticketId={ticket.id} />
         </div>
       </div>
 
@@ -133,8 +143,9 @@ export default async function TicketDetailsPage({
           </div>
 
           <p className="leading-relaxed text-zinc-600">
-            Клиент сообщает о проблеме. Нужно изучить обращение и подготовить
-            ответ.
+            Клиент обратился через виджет поддержки.
+            Требуется проверить обращение и
+            подготовить ответ.
           </p>
         </div>
 
@@ -154,8 +165,9 @@ export default async function TicketDetailsPage({
           </div>
 
           <p className="text-sm leading-relaxed text-zinc-600">
-            Здравствуйте! Спасибо за обращение. Мы уже проверяем информацию и
-            скоро вернемся с ответом.
+            Здравствуйте! Спасибо за обращение.
+            Мы уже изучаем информацию и скоро
+            вернемся с ответом.
           </p>
         </div>
       </aside>

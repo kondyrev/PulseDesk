@@ -16,91 +16,151 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    const { publicWidgetKey, customerEmail, customerName, message, pageUrl } =
-      body;
+    const {
+      publicWidgetKey,
+      ticketId,
+      customerEmail,
+      customerName,
+      message,
+      pageUrl,
+    } = body;
 
-    if (!publicWidgetKey || !message?.trim()) {
+    const cleanMessage = message?.trim();
+
+    if (!publicWidgetKey || !cleanMessage) {
       return NextResponse.json(
-        { error: "Не заполнены обязательные поля" },
-        { status: 400, headers: corsHeaders }
+        {
+          ok: false,
+          error: "Не заполнены обязательные поля",
+        },
+        {
+          status: 400,
+          headers: corsHeaders,
+        }
       );
     }
 
     const supabase = createAdminClient();
 
-    const { data: widgetSettings, error: widgetError } = await supabase
-      .from("widget_settings")
-      .select("workspace_id, is_enabled, allowed_domains")
-      .eq("public_widget_key", publicWidgetKey)
-      .single();
+    const { data: widgetSettings, error: widgetError } =
+      await supabase
+        .from("widget_settings")
+        .select("workspace_id, is_enabled")
+        .eq("public_widget_key", publicWidgetKey)
+        .single();
 
     if (widgetError || !widgetSettings?.is_enabled) {
       return NextResponse.json(
-        { error: "Виджет отключен или не найден" },
-        { status: 403, headers: corsHeaders }
+        {
+          ok: false,
+          error: "Виджет отключен или не найден",
+        },
+        {
+          status: 403,
+          headers: corsHeaders,
+        }
       );
     }
 
     const workspaceId = widgetSettings.workspace_id;
 
-    const title =
-      message.trim().length > 80
-        ? `${message.trim().slice(0, 80)}...`
-        : message.trim();
+    let finalTicketId = ticketId;
 
-    const { data: ticket, error: ticketError } = await supabase
-      .from("tickets")
-      .insert({
-        workspace_id: workspaceId,
-        title,
-        customer_email: customerEmail || null,
-        customer_name: customerName || null,
-        source: "widget",
-        status: "new",
-        priority: "normal",
-      })
-      .select("id")
-      .single();
+    if (finalTicketId) {
+      const { data: existingTicket } = await supabase
+        .from("tickets")
+        .select("id")
+        .eq("id", finalTicketId)
+        .eq("workspace_id", workspaceId)
+        .single();
 
-    if (ticketError || !ticket) {
-      return NextResponse.json(
-        { error: ticketError?.message || "Не удалось создать тикет" },
-        { status: 500, headers: corsHeaders }
-      );
+      if (!existingTicket) {
+        finalTicketId = null;
+      }
     }
 
-    const messageContent = pageUrl
-      ? `${message.trim()}\n\nСтраница: ${pageUrl}`
-      : message.trim();
+    if (!finalTicketId) {
+      const title =
+        cleanMessage.length > 80
+          ? `${cleanMessage.slice(0, 80)}...`
+          : cleanMessage;
+
+      const { data: ticket, error: ticketError } =
+        await supabase
+          .from("tickets")
+          .insert({
+            workspace_id: workspaceId,
+            title,
+            customer_email: customerEmail || null,
+            customer_name: customerName || null,
+            source: "widget",
+            status: "new",
+            priority: "normal",
+          })
+          .select("id")
+          .single();
+
+      if (ticketError || !ticket) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error:
+              ticketError?.message ||
+              "Не удалось создать обращение",
+          },
+          {
+            status: 500,
+            headers: corsHeaders,
+          }
+        );
+      }
+
+      finalTicketId = ticket.id;
+    }
 
     const { error: messageError } = await supabase
       .from("ticket_messages")
       .insert({
-        ticket_id: ticket.id,
+        ticket_id: finalTicketId,
         workspace_id: workspaceId,
         sender_type: "customer",
         customer_email: customerEmail || null,
-        content: messageContent,
+        content: cleanMessage,
+        page_url: pageUrl || null,
       });
 
     if (messageError) {
       return NextResponse.json(
-        { error: messageError.message },
-        { status: 500, headers: corsHeaders }
+        {
+          ok: false,
+          error: messageError.message,
+        },
+        {
+          status: 500,
+          headers: corsHeaders,
+        }
       );
     }
 
     return NextResponse.json(
       {
         ok: true,
-        ticketId: ticket.id,
+        ticketId: finalTicketId,
       },
-      { headers: corsHeaders }
+      {
+        headers: corsHeaders,
+      }
     );
   } catch {
     return NextResponse.json(
-      { error: "Некорректный запрос" },
-      { status: 400, headers: corsHeaders }
+      {
+        ok: false,
+        error: "Некорректный запрос",
+      },
+      {
+        status: 400,
+        headers: corsHeaders,
+      }
     );
   }
 }
