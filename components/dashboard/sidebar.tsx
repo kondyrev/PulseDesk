@@ -6,22 +6,22 @@ import { Inbox, LayoutDashboard, Settings, Sparkles } from "lucide-react";
 
 const items = [
   {
-    label: "Overview",
+    label: "Обзор",
     href: "/dashboard",
     icon: LayoutDashboard,
   },
   {
-    label: "Tickets",
+    label: "Обращения",
     href: "/dashboard/tickets",
     icon: Inbox,
   },
   {
-    label: "AI",
+    label: "ИИ-ассистент",
     href: "/dashboard/ai",
     icon: Sparkles,
   },
   {
-    label: "Settings",
+    label: "Настройки",
     href: "/dashboard/settings",
     icon: Settings,
   },
@@ -35,7 +35,9 @@ export function DashboardSidebar() {
       <div className="flex h-20 items-center px-6">
         <div>
           <div className="font-bold tracking-tight">PulseDesk</div>
-          <div className="text-xs text-zinc-500">AI workspace</div>
+          <div className="text-xs text-zinc-500">
+            рабочее пространство поддержки
+          </div>
         </div>
       </div>
 

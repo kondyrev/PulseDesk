@@ -5,6 +5,9 @@ import { ArrowUpRight, Inbox } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function TicketsPage() {
   const supabase = await createClient();
 
@@ -47,10 +50,10 @@ export default async function TicketsPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <div className="border-b border-black/5 bg-white px-8 py-5">
-        <h1 className="text-2xl font-semibold tracking-tight">Tickets</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Обращения</h1>
 
         <p className="mt-1 text-sm text-black/50">
-          Customer conversations and support workflow.
+          Сообщения клиентов, созданные через виджет поддержки.
         </p>
       </div>
 
@@ -61,13 +64,14 @@ export default async function TicketsPage() {
               <h2 className="text-lg font-semibold tracking-tight">
                 Входящие обращения
               </h2>
+
               <p className="mt-1 text-sm text-zinc-500">
-                Тикеты, созданные через widget API.
+                Новые сообщения с сайта клиента.
               </p>
             </div>
 
             <div className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">
-              {tickets?.length || 0} тикетов
+              {tickets?.length || 0} обращений
             </div>
           </div>
 
@@ -78,7 +82,7 @@ export default async function TicketsPage() {
               </div>
 
               <h3 className="text-xl font-semibold tracking-tight">
-                Пока нет тикетов
+                Пока нет обращений
               </h3>
 
               <p className="mt-2 max-w-md text-sm leading-relaxed text-zinc-500">
@@ -97,15 +101,17 @@ export default async function TicketsPage() {
                   <div>
                     <div className="mb-3 flex flex-wrap gap-2">
                       <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">
-                        {ticket.status}
+                        {ticket.status === "new" ? "Новое" : ticket.status}
                       </span>
 
                       <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600">
-                        {ticket.priority}
+                        {ticket.priority === "normal"
+                          ? "Обычный приоритет"
+                          : ticket.priority}
                       </span>
 
                       <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600">
-                        {ticket.source}
+                        {ticket.source === "widget" ? "Виджет" : ticket.source}
                       </span>
                     </div>
 
