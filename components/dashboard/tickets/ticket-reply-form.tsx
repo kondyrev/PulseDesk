@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+
 
 export function TicketReplyForm({ ticketId }: { ticketId: string }) {
-  const router = useRouter();
+  
 
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
@@ -39,7 +39,7 @@ export function TicketReplyForm({ ticketId }: { ticketId: string }) {
     }
 
     setContent("");
-    router.refresh();
+    
   }
 
   return (
