@@ -129,6 +129,14 @@ export async function POST(request: Request) {
         page_url: pageUrl || null,
       });
 
+    await supabase
+      .from("tickets")
+      .update({
+        last_message_at: new Date().toISOString(),
+        last_customer_message_at: new Date().toISOString(),
+      })
+      .eq("id", finalTicketId);
+
     if (messageError) {
       return NextResponse.json(
         {

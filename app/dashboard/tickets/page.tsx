@@ -3,9 +3,8 @@ import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
 import { ArrowUpRight, Inbox } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/server";
-
 import { TicketsAutoRefresh } from "@/components/dashboard/tickets/tickets-auto-refresh";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -42,16 +41,24 @@ export default async function TicketsPage() {
           status,
           priority,
           source,
-          created_at
+          created_at,
+          last_message_at,
+          last_customer_message_at,
+          last_operator_message_at
         `
         )
         .eq("workspace_id", workspaceId)
+        .order("last_message_at", {
+          ascending: false,
+          nullsFirst: false,
+        })
         .order("created_at", { ascending: false })
     : { data: [] };
 
   return (
     <div className="flex min-h-screen flex-col">
       <TicketsAutoRefresh />
+
       <div className="border-b border-black/5 bg-white px-8 py-5">
         <h1 className="text-2xl font-semibold tracking-tight">Обращения</h1>
 
@@ -95,51 +102,76 @@ export default async function TicketsPage() {
             </div>
           ) : (
             <div className="divide-y divide-black/5">
-              {tickets.map((ticket) => (
-                <Link
-                  key={ticket.id}
-                  href={`/dashboard/tickets/${ticket.id}`}
-                  className="flex flex-col gap-5 p-6 transition hover:bg-zinc-50 lg:flex-row lg:items-center lg:justify-between"
-                >
-                  <div>
-                    <div className="mb-3 flex flex-wrap gap-2">
-                      <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">
-                        {ticket.status === "new" ? "Новое" : ticket.status}
-                      </span>
+              {tickets.map((ticket) => {
+                const lastCustomerAt = ticket.last_customer_message_at
+                  ? new Date(ticket.last_customer_message_at).getTime()
+                  : null;
 
-                      <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600">
-                        {ticket.priority === "normal"
-                          ? "Обычный приоритет"
-                          : ticket.priority}
-                      </span>
+                const lastOperatorAt = ticket.last_operator_message_at
+                  ? new Date(ticket.last_operator_message_at).getTime()
+                  : null;
 
-                      <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600">
-                        {ticket.source === "widget" ? "Виджет" : ticket.source}
-                      </span>
+                const needsReply =
+                  lastCustomerAt !== null &&
+                  (lastOperatorAt === null || lastCustomerAt > lastOperatorAt);
+
+                const activityAt =
+                  ticket.last_message_at || ticket.created_at;
+
+                return (
+                  <Link
+                    key={ticket.id}
+                    href={`/dashboard/tickets/${ticket.id}`}
+                    className="flex flex-col gap-5 p-6 transition hover:bg-zinc-50 lg:flex-row lg:items-center lg:justify-between"
+                  >
+                    <div>
+                      <div className="mb-3 flex flex-wrap gap-2">
+                        {needsReply ? (
+                          <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600">
+                            Ждет ответа
+                          </span>
+                        ) : null}
+
+                        <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">
+                          {ticket.status === "new" ? "Новое" : ticket.status}
+                        </span>
+
+                        <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600">
+                          {ticket.priority === "normal"
+                            ? "Обычный приоритет"
+                            : ticket.priority}
+                        </span>
+
+                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600">
+                          {ticket.source === "widget"
+                            ? "Виджет"
+                            : ticket.source}
+                        </span>
+                      </div>
+
+                      <h3 className="text-lg font-bold tracking-tight">
+                        {ticket.title}
+                      </h3>
+
+                      <p className="mt-2 text-sm text-zinc-500">
+                        {ticket.customer_name || "Без имени"} ·{" "}
+                        {ticket.customer_email || "email не указан"} ·{" "}
+                        {activityAt
+                          ? formatDistanceToNow(new Date(activityAt), {
+                              addSuffix: true,
+                              locale: ru,
+                            })
+                          : ""}
+                      </p>
                     </div>
 
-                    <h3 className="text-lg font-bold tracking-tight">
-                      {ticket.title}
-                    </h3>
-
-                    <p className="mt-2 text-sm text-zinc-500">
-                      {ticket.customer_name || "Без имени"} ·{" "}
-                      {ticket.customer_email || "email не указан"} ·{" "}
-                      {ticket.created_at
-                        ? formatDistanceToNow(new Date(ticket.created_at), {
-                            addSuffix: true,
-                            locale: ru,
-                          })
-                        : ""}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-sm font-semibold text-zinc-500">
-                    Открыть
-                    <ArrowUpRight className="h-4 w-4" />
-                  </div>
-                </Link>
-              ))}
+                    <div className="flex items-center gap-2 text-sm font-semibold text-zinc-500">
+                      Открыть
+                      <ArrowUpRight className="h-4 w-4" />
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>

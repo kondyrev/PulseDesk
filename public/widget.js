@@ -75,6 +75,7 @@
       display: flex;
       flex-direction: column;
       height: calc(100% - 82px);
+      min-height: 0;
     }
 
     .pd-form {
@@ -118,16 +119,26 @@
       display: flex;
       flex-direction: column;
       height: 100%;
+      min-height: 0;
     }
 
     .pd-messages {
       flex: 1;
+      min-height: 0;
       overflow-y: auto;
       padding: 20px;
       background: #f6f7f8;
       display: flex;
       flex-direction: column;
       gap: 12px;
+    }
+
+    .pd-panel-chat {
+      height: 680px;
+    }
+
+    .pd-panel-form {
+      height: auto;
     }
 
     .pd-message {
