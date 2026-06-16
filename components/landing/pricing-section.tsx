@@ -22,12 +22,12 @@ function PricingCard({
     return (
       <div className="relative scale-[1.03] overflow-hidden rounded-[36px] bg-black p-10 text-white shadow-2xl">
         <div className="absolute right-6 top-6 rounded-full bg-white px-4 py-2 text-xs font-bold text-black">
-          Популярный
+          Оптимальный выбор
         </div>
 
         <div className="mb-5 font-medium text-zinc-400">{name}</div>
         <div className="mb-3 text-6xl font-black tracking-tight">{price}</div>
-        <div className="mb-10 text-zinc-500">{description}</div>
+        <div className="mb-10 text-zinc-400">{description}</div>
 
         <ul className="mb-12 space-y-5 text-lg text-zinc-300">
           {features.map((feature) => (
@@ -69,55 +69,56 @@ export function PricingSection() {
           eyebrow="Тарифы"
           title={
             <>
-              Подходит стартапам
-              <br />и большим командам.
+              Начните спокойно.
+              <br />
+              Растите без хаоса.
             </>
           }
-          description="Начните бесплатно и масштабируйтесь по мере роста поддержки."
+          description="PulseDesk подойдёт небольшой команде поддержки сегодня и сможет расти вместе с вашим бизнесом завтра."
           align="center"
           className="mb-24"
         />
 
         <div className="grid items-stretch gap-8 lg:grid-cols-3">
           <PricingCard
-            name="Starter"
-            price="0₽"
-            description="Для небольших команд"
-            button="Начать"
+            name="Старт"
+            price="0 ₽"
+            description="Для первых обращений и знакомства с продуктом"
+            button="Начать бесплатно"
             features={[
               "До 2 сотрудников",
-              "Realtime тикеты",
-              "Базовые AI summary",
-              "Загрузка файлов",
+              "Единая лента обращений",
+              "Базовая история переписки",
+              "Виджет для сайта",
             ]}
           />
 
           <PricingCard
-            name="Pro"
-            price="2 990₽"
-            description="За workspace / месяц"
+            name="Команда"
+            price="2 990 ₽"
+            description="За рабочее пространство в месяц"
             button="Попробовать бесплатно"
             popular
             features={[
-              "Безлимит сотрудников",
-              "AI-подсказки ответов",
-              "Анализ тональности",
-              "AI summary тикетов",
-              "Приоритетная очередь",
-              "Дашборд аналитики",
+              "Без ограничений по сотрудникам",
+              "ИИ-помощник для ответов",
+              "Краткое содержание обращений",
+              "Определение настроения клиента",
+              "Приоритеты и статусы",
+              "Аналитика работы поддержки",
             ]}
           />
 
           <PricingCard
-            name="Enterprise"
-            price="Custom"
-            description="Для больших support-команд"
-            button="Связаться с нами"
+            name="Бизнес"
+            price="По запросу"
+            description="Для компаний с особыми требованиями"
+            button="Обсудить внедрение"
             features={[
-              "Кастомные AI workflow",
-              "SLA автоматизация",
-              "Продвинутая аналитика",
-              "Выделенная инфраструктура",
+              "Индивидуальные сценарии работы",
+              "Расширенная автоматизация",
+              "Отдельные правила доступа",
+              "Помощь с внедрением",
               "Приоритетная поддержка",
             ]}
           />

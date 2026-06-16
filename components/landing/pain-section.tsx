@@ -1,71 +1,73 @@
-import { Container } from "@/components/shared/container";
-import { PremiumCard } from "@/components/shared/premium-card";
-import { Section } from "@/components/shared/section";
-import { SectionHeading } from "@/components/shared/section-heading";
-
-function PainCard({
-  emoji,
-  title,
-  text,
-}: {
-  emoji: string;
-  title: string;
-  text: string;
-}) {
-  return (
-    <PremiumCard className="p-8">
-      <div className="text-5xl mb-6">{emoji}</div>
-
-      <h3 className="text-2xl font-bold tracking-tight mb-4">{title}</h3>
-
-      <p className="text-zinc-500 leading-relaxed">{text}</p>
-    </PremiumCard>
-  );
-}
-
 export function PainSection() {
+  const items = [
+    {
+      title: "Обращения теряются",
+      description:
+        "Письма, мессенджеры и чаты живут отдельно. Команда тратит время не на помощь клиентам, а на поиск информации.",
+    },
+    {
+      title: "Контекст приходится собирать вручную",
+      description:
+        "Чтобы разобраться в ситуации, оператор открывает несколько вкладок и перечитывает длинные переписки.",
+    },
+    {
+      title: "Рутина съедает рабочий день",
+      description:
+        "Одни и те же вопросы повторяются снова и снова, а сотрудники отвечают на них вручную.",
+    },
+  ];
+
   return (
-    <Section id="pain" className="border-t-0">
-      <Container>
-        <SectionHeading
-          eyebrow="Проблема"
-          title={
-            <>
-              Поддержка не должна
-              <br />
-              быть источником стресса.
-            </>
-          }
-          description="Большинство helpdesk-систем устарели. Они перегружают команды, замедляют ответы и превращают поддержку в хаос."
-          className="mb-20"
-        />
+    <section
+      id="pain"
+      className="border-y border-black/[0.04] bg-[#fafafa] py-28"
+    >
+      <div className="mx-auto max-w-7xl px-6">
+        <div className="mx-auto mb-20 max-w-3xl text-center">
+          <div className="mb-5 text-sm font-semibold uppercase tracking-[0.25em] text-zinc-400">
+            Каждый рабочий день
+          </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <PainCard
-            emoji="😵"
-            title="Перегруженные очереди"
-            text="Срочные проблемы теряются среди сотен тикетов."
-          />
+          <h2 className="mb-6 text-4xl font-black tracking-tight md:text-6xl">
+            Поддержка не должна
+            <br />
+            превращаться в хаос.
+          </h2>
 
-          <PainCard
-            emoji="⏳"
-            title="Медленные ответы"
-            text="Поддержка тратит часы на чтение переписок и ручные summary."
-          />
-
-          <PainCard
-            emoji="🔥"
-            title="Недовольные клиенты"
-            text="Критические обращения замечают слишком поздно."
-          />
-
-          <PainCard
-            emoji="🧩"
-            title="Разрозненные процессы"
-            text="AI существует отдельно, а не встроен в workflow команды."
-          />
+          <p className="text-lg leading-8 text-zinc-500">
+            Большинство команд работают сразу в нескольких окнах, теряют
+            контекст и постоянно повторяют одни и те же действия. PulseDesk
+            помогает вернуть порядок и сосредоточиться на самом важном —
+            общении с клиентом.
+          </p>
         </div>
-      </Container>
-    </Section>
+
+        <div className="grid gap-6 md:grid-cols-3">
+          {items.map((item) => (
+            <div
+              key={item.title}
+              className="rounded-3xl border border-black/[0.04] bg-white p-8 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+            >
+              <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 text-lg font-bold">
+                •
+              </div>
+
+              <h3 className="mb-3 text-xl font-bold">{item.title}</h3>
+
+              <p className="leading-7 text-zinc-500">
+                {item.description}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mx-auto mt-16 max-w-4xl rounded-[32px] bg-black px-10 py-12 text-center text-white">
+          <p className="text-2xl font-semibold leading-relaxed md:text-3xl">
+            PulseDesk объединяет обращения, историю переписки и помощь
+            искусственного интеллекта в одном спокойном рабочем пространстве.
+          </p>
+        </div>
+      </div>
+    </section>
   );
 }

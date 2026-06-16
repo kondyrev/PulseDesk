@@ -1,113 +1,96 @@
-import { Container } from "@/components/shared/container";
-import { Pill } from "@/components/shared/pill";
-import { PremiumCard } from "@/components/shared/premium-card";
-import { Section } from "@/components/shared/section";
-import { SectionHeading } from "@/components/shared/section-heading";
-
-function FeatureCard({
-  eyebrow,
-  title,
-  text,
-  children,
-}: {
-  eyebrow: string;
-  title: string;
-  text: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <PremiumCard className="rounded-[36px] p-10">
-      <div className="mb-5 text-sm font-medium text-zinc-400">{eyebrow}</div>
-
-      <h3 className="mb-5 text-4xl font-black tracking-tight">{title}</h3>
-
-      <p className="mb-8 text-lg leading-relaxed text-zinc-500">{text}</p>
-
-      {children}
-    </PremiumCard>
-  );
-}
-
 export function FeaturesSection() {
+  const features = [
+    {
+      title: "Оперативная лента",
+      description:
+        "Все обращения собраны в одном месте. Новые сообщения, статусы и изменения появляются перед глазами без лишнего шума.",
+    },
+    {
+      title: "ИИ-помощник",
+      description:
+        "Помогает разобраться в переписке, предлагает варианты ответа и экономит время на рутинных действиях.",
+    },
+    {
+      title: "Полный контекст",
+      description:
+        "История общения, данные клиента и вся переписка находятся рядом. Не нужно переключаться между десятками вкладок.",
+    },
+    {
+      title: "Командная работа",
+      description:
+        "Каждый оператор видит актуальное состояние обращения и понимает, что происходит прямо сейчас.",
+    },
+    {
+      title: "Спокойный интерфейс",
+      description:
+        "Ничего лишнего. Только информация, которая действительно помогает быстро принять решение и ответить клиенту.",
+    },
+    {
+      title: "Создано для роста",
+      description:
+        "PulseDesk одинаково удобен как для небольшой команды, так и для службы поддержки с большим потоком обращений.",
+    },
+  ];
+
   return (
-    <Section id="features" muted>
-      <Container>
-        <SectionHeading
-          eyebrow="Возможности"
-          title={
-            <>
-              AI встроен
-              <br />в сам workflow.
-            </>
-          }
-          description="PulseDesk не добавляет AI «сверху». Он становится частью ежедневной работы поддержки."
-          className="mb-20"
-        />
+    <section
+      id="features"
+      className="bg-white py-28"
+    >
+      <div className="mx-auto max-w-7xl px-6">
+        <div className="mx-auto mb-20 max-w-3xl text-center">
+          <div className="mb-5 text-sm font-semibold uppercase tracking-[0.25em] text-zinc-400">
+            Возможности
+          </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <FeatureCard
-            eyebrow="AI Copilot"
-            title="AI-подсказки ответов"
-            text="AI анализирует контекст тикета, эмоции клиента и историю переписки, чтобы предложить готовый ответ."
-          >
-            <div className="rounded-3xl bg-zinc-100 p-6 leading-relaxed text-zinc-600">
-              «Здравствуйте! Мы уже проверяем проблему с оплатой и вернемся с
-              обновлением в ближайшее время.»
-            </div>
-          </FeatureCard>
+          <h2 className="mb-6 text-4xl font-black tracking-tight md:text-6xl">
+            Всё необходимое —
+            <br />
+            в одном окне.
+          </h2>
 
-          <FeatureCard
-            eyebrow="Realtime AI"
-            title="Мгновенные summary"
-            text="Перестаньте читать огромные цепочки сообщений. AI выделяет главное за секунды."
-          >
-            <div className="space-y-3">
-              {[
-                "Обнаружена проблема с оплатой",
-                "Клиент обращался 3 раза",
-                "Высокий риск эскалации",
-              ].map((item) => (
-                <div
-                  key={item}
-                  className="rounded-2xl bg-zinc-100 px-5 py-4 text-zinc-600"
-                >
-                  {item}
-                </div>
-              ))}
-            </div>
-          </FeatureCard>
-
-          <FeatureCard
-            eyebrow="Приоритизация"
-            title="Определение эмоций и срочности"
-            text="PulseDesk подсвечивает раздраженных клиентов и критические обращения до того, как они перерастут в проблему."
-          >
-            <div className="flex flex-wrap gap-3">
-              <Pill className="bg-red-100 text-red-600">
-                Недовольный клиент
-              </Pill>
-              <Pill className="bg-orange-100 text-orange-600">
-                Запрос возврата
-              </Pill>
-              <Pill className="bg-blue-100 text-blue-600">
-                Высокий приоритет
-              </Pill>
-            </div>
-          </FeatureCard>
-
-          <FeatureCard
-            eyebrow="Командная работа"
-            title="Realtime workspace"
-            text="Операторы, администраторы и AI работают в одном пространстве: тикеты, сообщения, файлы и контекст доступны сразу."
-          >
-            <div className="flex -space-x-4">
-              <div className="h-14 w-14 rounded-full border-4 border-white bg-zinc-900" />
-              <div className="h-14 w-14 rounded-full border-4 border-white bg-zinc-600" />
-              <div className="h-14 w-14 rounded-full border-4 border-white bg-zinc-300" />
-            </div>
-          </FeatureCard>
+          <p className="text-lg leading-8 text-zinc-500">
+            PulseDesk объединяет поток обращений, рабочие инструменты команды и
+            интеллектуальную помощь в единое пространство, где ничего не
+            отвлекает от главного.
+          </p>
         </div>
-      </Container>
-    </Section>
+
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {features.map((feature) => (
+            <div
+              key={feature.title}
+              className="rounded-[32px] border border-black/[0.05] bg-[#fafafa] p-8 transition duration-300 hover:-translate-y-1 hover:bg-white hover:shadow-xl"
+            >
+              <div className="mb-8 h-1 w-14 rounded-full bg-black" />
+
+              <h3 className="mb-4 text-2xl font-bold tracking-tight">
+                {feature.title}
+              </h3>
+
+              <p className="text-base leading-7 text-zinc-500">
+                {feature.description}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-20 rounded-[40px] bg-[#f5f5f7] p-10 md:p-14">
+          <div className="mx-auto max-w-4xl text-center">
+            <h3 className="mb-6 text-3xl font-black tracking-tight md:text-5xl">
+              Не просто отвечайте быстрее.
+              <br />
+              Работайте спокойнее.
+            </h3>
+
+            <p className="text-lg leading-8 text-zinc-500">
+              Когда обращения, история переписки и помощь искусственного
+              интеллекта находятся рядом, команда тратит меньше сил на поиск
+              информации и больше — на решение задач клиентов.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
