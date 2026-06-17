@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { createAdminClient } from "@/lib/supabase/admin";
+import { prisma } from "@/lib/prisma";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,48 +31,37 @@ export async function GET(
       );
     }
 
-    const supabase = createAdminClient();
+    const widgetSettings = await prisma.widgetSetting.findUnique({
+      where: {
+        publicWidgetKey,
+      },
+    });
 
-    const { data: widgetSettings, error: widgetError } = await supabase
-      .from("widget_settings")
-      .select("workspace_id, is_enabled")
-      .eq("public_widget_key", publicWidgetKey)
-      .single();
-
-    if (widgetError || !widgetSettings?.is_enabled) {
+    if (!widgetSettings || !widgetSettings.isEnabled) {
       return NextResponse.json(
         { error: "Виджет отключен или не найден" },
         { status: 403, headers: corsHeaders }
       );
     }
 
-    const workspaceId = widgetSettings.workspace_id;
+    const ticket = await prisma.ticket.findFirst({
+      where: {
+        id,
+        workspaceId: widgetSettings.workspaceId,
+      },
+      include: {
+        messages: {
+          orderBy: {
+            createdAt: "asc",
+          },
+        },
+      },
+    });
 
-    const { data: ticket, error: ticketError } = await supabase
-      .from("tickets")
-      .select("id, status")
-      .eq("id", id)
-      .eq("workspace_id", workspaceId)
-      .single();
-
-    if (ticketError || !ticket) {
+    if (!ticket) {
       return NextResponse.json(
         { error: "Обращение не найдено" },
         { status: 404, headers: corsHeaders }
-      );
-    }
-
-    const { data: messages, error: messagesError } = await supabase
-      .from("ticket_messages")
-      .select("id, sender_type, content, created_at")
-      .eq("ticket_id", id)
-      .eq("workspace_id", workspaceId)
-      .order("created_at", { ascending: true });
-
-    if (messagesError) {
-      return NextResponse.json(
-        { error: messagesError.message },
-        { status: 500, headers: corsHeaders }
       );
     }
 
@@ -80,11 +69,18 @@ export async function GET(
       {
         ok: true,
         closed: ticket.status === "closed",
-        messages: messages || [],
+        messages: ticket.messages.map((message) => ({
+          id: message.id,
+          sender_type: message.senderType,
+          content: message.content,
+          created_at: message.createdAt,
+        })),
       },
       { headers: corsHeaders }
     );
-  } catch {
+  } catch (error) {
+    console.error("Widget messages error:", error);
+
     return NextResponse.json(
       { error: "Ошибка сервера" },
       { status: 500, headers: corsHeaders }

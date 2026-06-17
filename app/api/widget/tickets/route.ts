@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { createAdminClient } from "@/lib/supabase/admin";
+import { prisma } from "@/lib/prisma";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,32 +30,30 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = createAdminClient();
+    const widgetSettings = await prisma.widgetSetting.findUnique({
+      where: {
+        publicWidgetKey,
+      },
+    });
 
-    const { data: widgetSettings, error: widgetError } = await supabase
-      .from("widget_settings")
-      .select("workspace_id, is_enabled")
-      .eq("public_widget_key", publicWidgetKey)
-      .single();
-
-    if (widgetError || !widgetSettings?.is_enabled) {
+    if (!widgetSettings || !widgetSettings.isEnabled) {
       return NextResponse.json(
         { error: "Виджет отключен или не найден" },
         { status: 403, headers: corsHeaders }
       );
     }
 
-    const workspaceId = widgetSettings.workspace_id;
+    const workspaceId = widgetSettings.workspaceId;
 
     if (ticketId) {
-      const { data: ticket, error: ticketError } = await supabase
-        .from("tickets")
-        .select("id, status")
-        .eq("id", ticketId)
-        .eq("workspace_id", workspaceId)
-        .single();
+      const ticket = await prisma.ticket.findFirst({
+        where: {
+          id: ticketId,
+          workspaceId,
+        },
+      });
 
-      if (ticketError || !ticket) {
+      if (!ticket) {
         return NextResponse.json(
           { error: "Обращение не найдено" },
           { status: 404, headers: corsHeaders }
@@ -73,38 +71,34 @@ export async function POST(request: Request) {
         );
       }
 
-      const { data: createdMessage, error: messageError } = await supabase
-        .from("ticket_messages")
-        .insert({
-          workspace_id: workspaceId,
-          ticket_id: ticket.id,
-          sender_type: "customer",
+      const createdMessage = await prisma.ticketMessage.create({
+        data: {
+          ticketId: ticket.id,
+          senderType: "customer",
           content: message,
-          page_url: pageUrl || null,
-        })
-        .select("id, sender_type, content, created_at")
-        .single();
+          pageUrl: pageUrl || null,
+        },
+      });
 
-      if (messageError) {
-        return NextResponse.json(
-          { error: messageError.message },
-          { status: 500, headers: corsHeaders }
-        );
-      }
-
-      await supabase
-        .from("tickets")
-        .update({
+      await prisma.ticket.update({
+        where: {
+          id: ticket.id,
+        },
+        data: {
           status: "waiting_operator",
-        })
-        .eq("id", ticket.id)
-        .eq("workspace_id", workspaceId);
+        },
+      });
 
       return NextResponse.json(
         {
           ok: true,
           ticketId: ticket.id,
-          message: createdMessage,
+          message: {
+            id: createdMessage.id,
+            sender_type: createdMessage.senderType,
+            content: createdMessage.content,
+            created_at: createdMessage.createdAt,
+          },
         },
         { headers: corsHeaders }
       );
@@ -112,43 +106,24 @@ export async function POST(request: Request) {
 
     const title = message.length > 80 ? `${message.slice(0, 80)}...` : message;
 
-    const { data: ticket, error: ticketCreateError } = await supabase
-      .from("tickets")
-      .insert({
-        workspace_id: workspaceId,
+    const ticket = await prisma.ticket.create({
+      data: {
+        workspaceId,
         title,
-        customer_name: customerName || null,
-        customer_email: customerEmail || null,
+        customerName: customerName || null,
+        customerEmail: customerEmail || null,
         status: "new",
         priority: "normal",
         source: "widget",
-      })
-      .select("id")
-      .single();
-
-    if (ticketCreateError || !ticket) {
-      return NextResponse.json(
-        { error: ticketCreateError?.message || "Не удалось создать обращение" },
-        { status: 500, headers: corsHeaders }
-      );
-    }
-
-    const { error: messageCreateError } = await supabase
-      .from("ticket_messages")
-      .insert({
-        workspace_id: workspaceId,
-        ticket_id: ticket.id,
-        sender_type: "customer",
-        content: message,
-        page_url: pageUrl || null,
-      });
-
-    if (messageCreateError) {
-      return NextResponse.json(
-        { error: messageCreateError.message },
-        { status: 500, headers: corsHeaders }
-      );
-    }
+        messages: {
+          create: {
+            senderType: "customer",
+            content: message,
+            pageUrl: pageUrl || null,
+          },
+        },
+      },
+    });
 
     return NextResponse.json(
       {
@@ -157,7 +132,9 @@ export async function POST(request: Request) {
       },
       { headers: corsHeaders }
     );
-  } catch {
+  } catch (error) {
+    console.error("Widget ticket error:", error);
+
     return NextResponse.json(
       { error: "Ошибка сервера" },
       { status: 500, headers: corsHeaders }
