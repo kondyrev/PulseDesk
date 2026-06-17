@@ -143,22 +143,31 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
         </div>
       ) : null}
 
-      <div className="rounded-[32px] border border-black/5 p-6">
-        <div className="mb-4 text-sm font-semibold text-zinc-400">
-          Краткая сводка
+      <div className="rounded-[32px] border border-black/5 bg-black p-6 text-white shadow-sm">
+        <div className="mb-4 text-sm font-semibold text-white/50">
+          Рекомендуемый ответ
         </div>
 
-        <p className="leading-relaxed text-zinc-600">{data.summary}</p>
+        <p className="text-sm leading-relaxed text-white/85">
+          {data.suggestedReply}
+        </p>
+
+        <button
+          onClick={handleInsertReply}
+          className="mt-4 rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-black transition hover:opacity-90"
+        >
+          Вставить в ответ
+        </button>
       </div>
 
       <div className="rounded-[32px] border border-black/5 p-6">
         <div className="mb-4 text-sm font-semibold text-zinc-400">
-          Настроение клиента
+          Рекомендуемое действие
         </div>
 
-        <div className="inline-flex rounded-full bg-zinc-100 px-3 py-1 text-sm font-semibold text-zinc-700">
-          {data.sentiment}
-        </div>
+        <p className="text-sm leading-relaxed text-zinc-600">
+          {data.recommendedAction}
+        </p>
       </div>
 
       <div className="rounded-[32px] border border-black/5 p-6">
@@ -179,29 +188,20 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
 
       <div className="rounded-[32px] border border-black/5 p-6">
         <div className="mb-4 text-sm font-semibold text-zinc-400">
-          Рекомендуемое действие
+          Настроение клиента
         </div>
 
-        <p className="text-sm leading-relaxed text-zinc-600">
-          {data.recommendedAction}
-        </p>
+        <div className="inline-flex rounded-full bg-zinc-100 px-3 py-1 text-sm font-semibold text-zinc-700">
+          {data.sentiment}
+        </div>
       </div>
 
       <div className="rounded-[32px] border border-black/5 p-6">
         <div className="mb-4 text-sm font-semibold text-zinc-400">
-          Рекомендуемый ответ
+          Краткая сводка
         </div>
 
-        <p className="text-sm leading-relaxed text-zinc-600">
-          {data.suggestedReply}
-        </p>
-
-        <button
-          onClick={handleInsertReply}
-          className="mt-4 rounded-2xl bg-black px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
-        >
-          Вставить в ответ
-        </button>
+        <p className="leading-relaxed text-zinc-600">{data.summary}</p>
       </div>
     </div>
   );
