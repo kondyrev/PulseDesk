@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { TicketMessagesPanel } from "@/components/dashboard/tickets/ticket-messages-panel";
 import { TicketReplyForm } from "@/components/dashboard/tickets/ticket-reply-form";
 import { createClient } from "@/lib/supabase/server";
+import { TicketAiPanel } from "@/components/dashboard/tickets/ticket-ai-panel";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -94,39 +95,7 @@ export default async function TicketDetailsPage({
       </div>
 
       <aside className="h-full overflow-y-auto bg-white p-6">
-        <div className="sticky top-6 space-y-6">
-          <div className="rounded-[32px] border border-black/5 p-6">
-            <div className="mb-4 text-sm font-semibold text-zinc-400">
-              Краткая сводка
-            </div>
-
-            <p className="leading-relaxed text-zinc-600">
-              Клиент обратился через виджет поддержки. Требуется проверить
-              обращение и подготовить ответ.
-            </p>
-          </div>
-
-          <div className="rounded-[32px] border border-black/5 p-6">
-            <div className="mb-4 text-sm font-semibold text-zinc-400">
-              Настроение клиента
-            </div>
-
-            <div className="inline-flex rounded-full bg-red-50 px-3 py-1 text-sm font-semibold text-red-600">
-              Требует внимания
-            </div>
-          </div>
-
-          <div className="rounded-[32px] border border-black/5 p-6">
-            <div className="mb-4 text-sm font-semibold text-zinc-400">
-              Рекомендуемый ответ
-            </div>
-
-            <p className="text-sm leading-relaxed text-zinc-600">
-              Здравствуйте! Спасибо за обращение. Мы уже изучаем информацию и
-              скоро вернемся с ответом.
-            </p>
-          </div>
-        </div>
+        <TicketAiPanel ticketId={ticket.id} />
       </aside>
     </div>
   );
