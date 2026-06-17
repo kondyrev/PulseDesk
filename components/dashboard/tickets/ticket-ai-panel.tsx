@@ -13,18 +13,6 @@ type AiSummary = {
   statusReason: string;
 };
 
-const statusLabels: Record<AiStatusSuggestion, string> = {
-  waiting_operator: "Требуется оператор",
-  waiting_customer: "Ожидаем клиента",
-  resolved: "Проблема решена",
-};
-
-const statusClasses: Record<AiStatusSuggestion, string> = {
-  waiting_operator: "bg-orange-100 text-orange-700",
-  waiting_customer: "bg-blue-100 text-blue-700",
-  resolved: "bg-green-100 text-green-700",
-};
-
 function isKnownStatus(value: string): value is AiStatusSuggestion {
   return (
     value === "waiting_operator" ||
@@ -40,6 +28,7 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [showDetails, setShowDetails] = useState(false);
 
   const loadSummary = useCallback(
     async ({ silent = false }: { silent?: boolean } = {}) => {
@@ -61,7 +50,7 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
       setRefreshing(false);
 
       if (!response.ok || !result.ok) {
-        setError(result.error || "ИИ не смог подготовить сводку.");
+        setError(result.error || "Не удалось подготовить рекомендации.");
         return;
       }
 
@@ -118,7 +107,7 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
   if (loading) {
     return (
       <div className="sticky top-6 rounded-[32px] border border-black/5 p-6 text-sm text-zinc-500">
-        ИИ анализирует обращение...
+        Подготавливаем рекомендации...
       </div>
     );
   }
@@ -126,7 +115,7 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
   if (error || !data) {
     return (
       <div className="sticky top-6 rounded-[32px] border border-red-100 bg-red-50 p-6 text-sm font-medium text-red-600">
-        {error || "Не удалось загрузить AI-сводку."}
+        {error || "Не удалось загрузить рекомендации."}
       </div>
     );
   }
@@ -139,13 +128,13 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
     <div className="sticky top-6 space-y-6">
       {refreshing ? (
         <div className="rounded-[24px] border border-blue-100 bg-blue-50 px-5 py-4 text-sm font-medium text-blue-700">
-          ИИ обновляет сводку по новым сообщениям...
+          Обновляем рекомендации...
         </div>
       ) : null}
 
       <div className="rounded-[32px] border border-black/5 bg-black p-6 text-white shadow-sm">
         <div className="mb-4 text-sm font-semibold text-white/50">
-          Рекомендуемый ответ
+          Ответить клиенту
         </div>
 
         <p className="text-sm leading-relaxed text-white/85">
@@ -161,47 +150,100 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
       </div>
 
       <div className="rounded-[32px] border border-black/5 p-6">
-        <div className="mb-4 text-sm font-semibold text-zinc-400">
-          Рекомендуемое действие
+        <div className="mb-3 text-sm font-semibold text-zinc-400">
+          Следующий шаг
         </div>
 
-        <p className="text-sm leading-relaxed text-zinc-600">
+        <p className="text-sm leading-relaxed text-zinc-700">
           {data.recommendedAction}
         </p>
       </div>
 
       <div className="rounded-[32px] border border-black/5 p-6">
-        <div className="mb-4 text-sm font-semibold text-zinc-400">
-          Статус по мнению ИИ
-        </div>
+        {status === "resolved" && (
+          <>
+            <div className="text-base font-semibold text-green-700">
+              ✓ Можно закрыть обращение
+            </div>
 
-        <div
-          className={`mb-4 inline-flex rounded-full px-3 py-1 text-sm font-semibold ${statusClasses[status]}`}
+            <p className="mt-2 text-sm text-zinc-600">
+              Клиент подтвердил решение вопроса.
+            </p>
+
+            <button className="mt-4 rounded-2xl bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90">
+              Закрыть обращение
+            </button>
+          </>
+        )}
+
+        {status === "waiting_customer" && (
+          <>
+            <div className="text-base font-semibold text-blue-700">
+              ⏳ Ждём клиента
+            </div>
+
+            <p className="mt-2 text-sm text-zinc-600">
+              Последнее действие выполнено оператором.
+            </p>
+          </>
+        )}
+
+        {status === "waiting_operator" && (
+          <>
+            <div className="text-base font-semibold text-orange-700">
+              ⚠ Нужен ответ оператора
+            </div>
+
+            <p className="mt-2 text-sm text-zinc-600">
+              Клиент ожидает реакцию службы поддержки.
+            </p>
+          </>
+        )}
+      </div>
+
+      <div className="rounded-[32px] border border-black/5 p-6">
+        <button
+          onClick={() => setShowDetails((value) => !value)}
+          className="text-sm font-semibold text-zinc-600 hover:text-black"
         >
-          {statusLabels[status]}
-        </div>
+          {showDetails
+            ? "Скрыть детали обращения"
+            : "Показать детали обращения"}
+        </button>
 
-        <p className="text-sm leading-relaxed text-zinc-600">
-          {data.statusReason}
-        </p>
-      </div>
+        {showDetails && (
+          <div className="mt-6 space-y-6">
+            <div>
+              <div className="mb-2 text-sm font-semibold text-zinc-400">
+                Краткая сводка
+              </div>
 
-      <div className="rounded-[32px] border border-black/5 p-6">
-        <div className="mb-4 text-sm font-semibold text-zinc-400">
-          Настроение клиента
-        </div>
+              <p className="text-sm leading-relaxed text-zinc-600">
+                {data.summary}
+              </p>
+            </div>
 
-        <div className="inline-flex rounded-full bg-zinc-100 px-3 py-1 text-sm font-semibold text-zinc-700">
-          {data.sentiment}
-        </div>
-      </div>
+            <div>
+              <div className="mb-2 text-sm font-semibold text-zinc-400">
+                Настроение клиента
+              </div>
 
-      <div className="rounded-[32px] border border-black/5 p-6">
-        <div className="mb-4 text-sm font-semibold text-zinc-400">
-          Краткая сводка
-        </div>
+              <div className="inline-flex rounded-full bg-zinc-100 px-3 py-1 text-sm font-semibold text-zinc-700">
+                {data.sentiment}
+              </div>
+            </div>
 
-        <p className="leading-relaxed text-zinc-600">{data.summary}</p>
+            <div>
+              <div className="mb-2 text-sm font-semibold text-zinc-400">
+                Причина рекомендации
+              </div>
+
+              <p className="text-sm leading-relaxed text-zinc-600">
+                {data.statusReason}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
