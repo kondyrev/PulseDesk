@@ -10,8 +10,7 @@
     return;
   }
 
-  const apiBase =
-    script.dataset.apiBase || "http://localhost:3000";
+  const apiBase = script.dataset.apiBase || "https://pulsedesk.ru";
 
   let widgetSettings = {
     company_name: "",
@@ -219,13 +218,8 @@
 
     <div class="pd-panel">
       <div class="pd-header">
-        <div class="pd-title">
-          Поддержка
-        </div>
-
-        <div class="pd-subtitle">
-          Обычно отвечаем в течение нескольких минут
-        </div>
+        <div class="pd-title">Поддержка</div>
+        <div class="pd-subtitle">Обычно отвечаем в течение нескольких минут</div>
       </div>
 
       <div class="pd-body"></div>
@@ -247,13 +241,10 @@
 
     const title = widgetSettings.title || "Поддержка";
 
-    titleElement.innerText = companyName
-      ? `${title} ${companyName}`
-      : title;
+    titleElement.innerText = companyName ? `${title} ${companyName}` : title;
 
     subtitleElement.innerText =
-      widgetSettings.subtitle ||
-      "Обычно отвечаем в течение нескольких минут";
+      widgetSettings.subtitle || "Обычно отвечаем в течение нескольких минут";
   }
 
   async function loadWidgetSettings() {
@@ -282,19 +273,15 @@
   }
 
   launcher.addEventListener("click", () => {
-    panel.style.display =
-      panel.style.display === "none" ? "block" : "none";
+    panel.style.display = panel.style.display === "none" ? "block" : "none";
   });
 
-  let ticketId = localStorage.getItem(
-    `pulsedesk-ticket-${publicWidgetKey}`
-  );
+  let ticketId = localStorage.getItem(`pulsedesk-ticket-${publicWidgetKey}`);
 
   let isTyping = false;
 
   function renderMessages(messages) {
-    const messagesContainer =
-      body.querySelector(".pd-messages");
+    const messagesContainer = body.querySelector(".pd-messages");
 
     if (!messagesContainer) return;
 
@@ -317,8 +304,7 @@
       messagesContainer.appendChild(div);
     });
 
-    messagesContainer.scrollTop =
-      messagesContainer.scrollHeight;
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
   }
 
   async function loadMessages() {
@@ -331,9 +317,7 @@
     const data = await response.json();
 
     if (!data.ok) {
-      localStorage.removeItem(
-        `pulsedesk-ticket-${publicWidgetKey}`
-      );
+      localStorage.removeItem(`pulsedesk-ticket-${publicWidgetKey}`);
 
       ticketId = null;
 
@@ -366,9 +350,7 @@
       `;
 
       const input = body.querySelector(".pd-chat-input");
-
-      const sendButton =
-        body.querySelector(".pd-chat-send");
+      const sendButton = body.querySelector(".pd-chat-send");
 
       input.addEventListener("input", () => {
         isTyping = input.value.trim().length > 0;
@@ -400,23 +382,20 @@
 
         input.value = "";
 
-        const request = await fetch(
-          `${apiBase}/api/widget/tickets`,
-          {
-            method: "POST",
+        const request = await fetch(`${apiBase}/api/widget/tickets`, {
+          method: "POST",
 
-            headers: {
-              "Content-Type": "application/json",
-            },
+          headers: {
+            "Content-Type": "application/json",
+          },
 
-            body: JSON.stringify({
-              publicWidgetKey,
-              ticketId,
-              message: text,
-              pageUrl: window.location.href,
-            }),
-          }
-        );
+          body: JSON.stringify({
+            publicWidgetKey,
+            ticketId,
+            message: text,
+            pageUrl: window.location.href,
+          }),
+        });
 
         const result = await request.json();
 
@@ -435,6 +414,7 @@
   function renderForm() {
     panel.classList.remove("pd-panel-chat");
     panel.classList.add("pd-panel-form");
+
     body.innerHTML = `
       <div class="pd-form">
         <input
@@ -461,42 +441,33 @@
       </div>
     `;
 
-    const sendButton =
-      body.querySelector(".pd-send");
+    const sendButton = body.querySelector(".pd-send");
 
     sendButton.addEventListener("click", async () => {
-      const customerName =
-        body.querySelector("#pd-name").value;
-
-      const customerEmail =
-        body.querySelector("#pd-email").value;
-
-      const message =
-        body.querySelector("#pd-message").value;
+      const customerName = body.querySelector("#pd-name").value;
+      const customerEmail = body.querySelector("#pd-email").value;
+      const message = body.querySelector("#pd-message").value;
 
       if (!message.trim()) return;
 
       sendButton.disabled = true;
       sendButton.innerText = "Отправляем...";
 
-      const response = await fetch(
-        `${apiBase}/api/widget/tickets`,
-        {
-          method: "POST",
+      const response = await fetch(`${apiBase}/api/widget/tickets`, {
+        method: "POST",
 
-          headers: {
-            "Content-Type": "application/json",
-          },
+        headers: {
+          "Content-Type": "application/json",
+        },
 
-          body: JSON.stringify({
-            publicWidgetKey,
-            customerName,
-            customerEmail,
-            message,
-            pageUrl: window.location.href,
-          }),
-        }
-      );
+        body: JSON.stringify({
+          publicWidgetKey,
+          customerName,
+          customerEmail,
+          message,
+          pageUrl: window.location.href,
+        }),
+      });
 
       const data = await response.json();
 
@@ -507,10 +478,7 @@
 
       ticketId = data.ticketId;
 
-      localStorage.setItem(
-        `pulsedesk-ticket-${publicWidgetKey}`,
-        ticketId
-      );
+      localStorage.setItem(`pulsedesk-ticket-${publicWidgetKey}`, ticketId);
 
       loadMessages();
 
