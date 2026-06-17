@@ -12,6 +12,10 @@ type TicketMessage = {
   created_at: string;
 };
 
+function getMessagesSignature(messages: TicketMessage[]) {
+  return messages.map((message) => message.id).join("|");
+}
+
 export function TicketMessagesPanel({
   ticketId,
   initialMessages,
@@ -22,6 +26,7 @@ export function TicketMessagesPanel({
   const supabase = useMemo(() => createClient(), []);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const hasInitialScrolled = useRef(false);
+  const hasInitialSignatureSaved = useRef(false);
 
   const [messages, setMessages] = useState<TicketMessage[]>(initialMessages);
 
@@ -86,6 +91,24 @@ export function TicketMessagesPanel({
       setTimeout(scrollToBottom, 80);
     }
   }, [scrollToBottom]);
+
+  useEffect(() => {
+    const signature = getMessagesSignature(messages);
+
+    if (!hasInitialSignatureSaved.current) {
+      hasInitialSignatureSaved.current = true;
+      return;
+    }
+
+    window.dispatchEvent(
+      new CustomEvent("pulsedesk:messages-updated", {
+        detail: {
+          ticketId,
+          signature,
+        },
+      })
+    );
+  }, [messages, ticketId]);
 
   useEffect(() => {
     const channel = supabase

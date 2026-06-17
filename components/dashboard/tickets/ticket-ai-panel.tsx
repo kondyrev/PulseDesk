@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type AiSummary = {
   summary: string;
@@ -10,13 +10,21 @@ type AiSummary = {
 };
 
 export function TicketAiPanel({ ticketId }: { ticketId: string }) {
+  const refreshTimeoutRef = useRef<number | null>(null);
+
   const [data, setData] = useState<AiSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    async function loadSummary() {
-      setLoading(true);
+  const loadSummary = useCallback(
+    async ({ silent = false }: { silent?: boolean } = {}) => {
+      if (silent) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
       setError("");
 
       const response = await fetch(`/api/tickets/${ticketId}/ai-summary`, {
@@ -26,6 +34,7 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
       const result = await response.json();
 
       setLoading(false);
+      setRefreshing(false);
 
       if (!response.ok || !result.ok) {
         setError(result.error || "ИИ не смог подготовить сводку.");
@@ -33,10 +42,42 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
       }
 
       setData(result.summary);
+    },
+    [ticketId]
+  );
+
+  useEffect(() => {
+    loadSummary();
+
+    function handleMessagesUpdated(event: Event) {
+      const customEvent = event as CustomEvent<{ ticketId?: string }>;
+
+      if (customEvent.detail?.ticketId !== ticketId) {
+        return;
+      }
+
+      if (refreshTimeoutRef.current) {
+        window.clearTimeout(refreshTimeoutRef.current);
+      }
+
+      refreshTimeoutRef.current = window.setTimeout(() => {
+        loadSummary({ silent: true });
+      }, 600);
     }
 
-    loadSummary();
-  }, [ticketId]);
+    window.addEventListener("pulsedesk:messages-updated", handleMessagesUpdated);
+
+    return () => {
+      if (refreshTimeoutRef.current) {
+        window.clearTimeout(refreshTimeoutRef.current);
+      }
+
+      window.removeEventListener(
+        "pulsedesk:messages-updated",
+        handleMessagesUpdated
+      );
+    };
+  }, [loadSummary, ticketId]);
 
   function handleInsertReply() {
     if (!data?.suggestedReply) return;
@@ -68,6 +109,12 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
 
   return (
     <div className="sticky top-6 space-y-6">
+      {refreshing ? (
+        <div className="rounded-[24px] border border-blue-100 bg-blue-50 px-5 py-4 text-sm font-medium text-blue-700">
+          ИИ обновляет сводку по новым сообщениям...
+        </div>
+      ) : null}
+
       <div className="rounded-[32px] border border-black/5 p-6">
         <div className="mb-4 text-sm font-semibold text-zinc-400">
           Краткая сводка

@@ -96,11 +96,19 @@ export async function POST(
       );
     }
 
-    const { data: messages } = await supabase
+    const { data: messages, error: messagesError } = await supabase
       .from("ticket_messages")
       .select("sender_type, content, page_url, created_at")
       .eq("ticket_id", ticket.id)
+      .eq("workspace_id", workspaceId)
       .order("created_at", { ascending: true });
+
+    if (messagesError) {
+      return NextResponse.json(
+        { error: messagesError.message },
+        { status: 500 }
+      );
+    }
 
     const conversation = (messages || [])
       .map((message) => {
@@ -137,6 +145,9 @@ ${conversation || "Сообщений пока нет."}
 - Не выдумывай факты.
 - Не подписывай ответ от имени PulseDesk.
 - PulseDesk — это внутренняя система поддержки, клиент не должен видеть это название.
+- Не используй гендерные формулировки от лица оператора.
+- Не используй слова "понял", "поняла", "рад", "рада", если пол оператора неизвестен.
+- Предпочитай нейтральные формулировки: "Спасибо за обращение", "Благодарим за уточнение", "Мы изучаем ситуацию", "Уточните, пожалуйста".
 - Если нужна подпись, используй нейтральное: "С уважением, служба поддержки".
 `.trim();
 
@@ -158,7 +169,7 @@ ${conversation || "Сообщений пока нет."}
           messages: [
             {
               role: "system",
-              text: "Ты ИИ-ассистент оператора поддержки. Анализируй обращения клиентов и возвращай только валидный JSON.",
+              text: "Ты ИИ-ассистент оператора поддержки. Анализируй обращения клиентов и возвращай только валидный JSON. Используй нейтральный профессиональный стиль без гендерных формулировок от лица оператора.",
             },
             {
               role: "user",
