@@ -18,6 +18,8 @@ type TicketStatus =
   | "resolved"
   | "closed";
 
+type TicketsFilter = "all" | "waiting_operator" | "waiting_customer" | "closed";
+
 const statusView: Record<
   TicketStatus,
   {
@@ -62,7 +64,34 @@ function getStatusView(status: string) {
   return statusView[status as TicketStatus] || statusView.open;
 }
 
-export default async function TicketsPage() {
+function getFilter(value?: string): TicketsFilter {
+  if (
+    value === "waiting_operator" ||
+    value === "waiting_customer" ||
+    value === "closed"
+  ) {
+    return value;
+  }
+
+  return "all";
+}
+
+function getFilterHref(filter: TicketsFilter) {
+  if (filter === "all") {
+    return "/dashboard/tickets";
+  }
+
+  return `/dashboard/tickets?status=${filter}`;
+}
+
+export default async function TicketsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
+  const resolvedSearchParams = await searchParams;
+  const activeFilter = getFilter(resolvedSearchParams.status);
+
   const supabase = await createClient();
 
   const {
@@ -107,12 +136,55 @@ export default async function TicketsPage() {
       })
     : [];
 
-  const sortedTickets = [...tickets].sort((a, b) => {
+  const counts = {
+    all: tickets.length,
+    waiting_operator: tickets.filter(
+      (ticket) => ticket.status === "waiting_operator"
+    ).length,
+    waiting_customer: tickets.filter(
+      (ticket) => ticket.status === "waiting_customer"
+    ).length,
+    closed: tickets.filter((ticket) => ticket.status === "closed").length,
+  };
+
+  const filteredTickets =
+    activeFilter === "all"
+      ? tickets
+      : tickets.filter((ticket) => ticket.status === activeFilter);
+
+  const sortedTickets = [...filteredTickets].sort((a, b) => {
     const aLast = a.messages[0]?.createdAt || a.createdAt;
     const bLast = b.messages[0]?.createdAt || b.createdAt;
 
     return bLast.getTime() - aLast.getTime();
   });
+
+  const filters: Array<{
+    value: TicketsFilter;
+    label: string;
+    count: number;
+  }> = [
+    {
+      value: "all",
+      label: "Все",
+      count: counts.all,
+    },
+    {
+      value: "waiting_operator",
+      label: "Ждут оператора",
+      count: counts.waiting_operator,
+    },
+    {
+      value: "waiting_customer",
+      label: "Ждут клиента",
+      count: counts.waiting_customer,
+    },
+    {
+      value: "closed",
+      label: "Закрытые",
+      count: counts.closed,
+    },
+  ];
 
   return (
     <div className="flex min-h-screen flex-col bg-[#f6f7f8]">
@@ -120,19 +192,50 @@ export default async function TicketsPage() {
 
       <div className="flex-1 p-6">
         <div className="rounded-[32px] border border-black/5 bg-white shadow-[0_10px_40px_rgba(0,0,0,0.04)]">
-          <div className="flex items-center justify-between border-b border-black/5 p-6">
-            <div>
-              <h1 className="text-lg font-semibold tracking-tight">
-                Оперативная лента
-              </h1>
+          <div className="border-b border-black/5 p-6">
+            <div className="flex items-start justify-between gap-6">
+              <div>
+                <h1 className="text-lg font-semibold tracking-tight">
+                  Оперативная лента
+                </h1>
 
-              <p className="mt-1 text-sm text-zinc-500">
-                Самые свежие обращения всегда сверху.
-              </p>
+                <p className="mt-1 text-sm text-zinc-500">
+                  Самые свежие обращения всегда сверху.
+                </p>
+              </div>
+
+              <div className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">
+                {sortedTickets.length} обращений
+              </div>
             </div>
 
-            <div className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">
-              {sortedTickets.length} обращений
+            <div className="mt-6 flex flex-wrap gap-2">
+              {filters.map((filter) => {
+                const active = filter.value === activeFilter;
+
+                return (
+                  <Link
+                    key={filter.value}
+                    href={getFilterHref(filter.value)}
+                    className={
+                      active
+                        ? "rounded-full bg-black px-4 py-2 text-sm font-semibold text-white"
+                        : "rounded-full bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-200 hover:text-zinc-900"
+                    }
+                  >
+                    {filter.label}
+                    <span
+                      className={
+                        active
+                          ? "ml-2 text-white/60"
+                          : "ml-2 text-zinc-400"
+                      }
+                    >
+                      {filter.count}
+                    </span>
+                  </Link>
+                );
+              })}
             </div>
           </div>
 
@@ -143,12 +246,11 @@ export default async function TicketsPage() {
               </div>
 
               <h3 className="text-xl font-semibold tracking-tight">
-                Пока нет обращений
+                В этом фильтре пока пусто
               </h3>
 
               <p className="mt-2 max-w-md text-sm leading-relaxed text-zinc-500">
-                Когда пользователь отправит сообщение через виджет, оно появится
-                здесь.
+                Когда появятся подходящие обращения, они будут показаны здесь.
               </p>
             </div>
           ) : (
@@ -199,7 +301,9 @@ export default async function TicketsPage() {
                         </span>
 
                         <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600 ring-1 ring-emerald-100">
-                          {ticket.source === "widget" ? "Виджет" : ticket.source}
+                          {ticket.source === "widget"
+                            ? "Виджет"
+                            : ticket.source}
                         </span>
                       </div>
 
