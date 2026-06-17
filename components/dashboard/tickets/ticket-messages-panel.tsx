@@ -26,16 +26,14 @@ export function TicketMessagesPanel({
   const supabase = useMemo(() => createClient(), []);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const hasInitialScrolled = useRef(false);
-  const hasInitialSignatureSaved = useRef(false);
+  const messagesSignatureRef = useRef(getMessagesSignature(initialMessages));
 
   const [messages, setMessages] = useState<TicketMessage[]>(initialMessages);
 
   const scrollToBottom = useCallback(() => {
     const container = scrollRef.current;
 
-    if (!container) {
-      return;
-    }
+    if (!container) return;
 
     container.scrollTop = container.scrollHeight;
   }, []);
@@ -43,29 +41,56 @@ export function TicketMessagesPanel({
   const isNearBottom = useCallback(() => {
     const container = scrollRef.current;
 
-    if (!container) {
-      return true;
-    }
+    if (!container) return true;
 
     return (
       container.scrollHeight - container.scrollTop - container.clientHeight < 180
     );
   }, []);
 
-  const mergeMessages = useCallback((incoming: TicketMessage[]) => {
-    setMessages((current) => {
-      const map = new Map<string, TicketMessage>();
+  const dispatchMessagesUpdated = useCallback(
+    (nextMessages: TicketMessage[]) => {
+      const nextSignature = getMessagesSignature(nextMessages);
 
-      [...current, ...incoming].forEach((message) => {
-        map.set(message.id, message);
-      });
+      if (nextSignature === messagesSignatureRef.current) {
+        return;
+      }
 
-      return Array.from(map.values()).sort(
-        (a, b) =>
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      messagesSignatureRef.current = nextSignature;
+
+      window.dispatchEvent(
+        new CustomEvent("pulsedesk:messages-updated", {
+          detail: {
+            ticketId,
+            signature: nextSignature,
+          },
+        })
       );
-    });
-  }, []);
+    },
+    [ticketId]
+  );
+
+  const mergeMessages = useCallback(
+    (incoming: TicketMessage[]) => {
+      setMessages((current) => {
+        const map = new Map<string, TicketMessage>();
+
+        [...current, ...incoming].forEach((message) => {
+          map.set(message.id, message);
+        });
+
+        const nextMessages = Array.from(map.values()).sort(
+          (a, b) =>
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+
+        dispatchMessagesUpdated(nextMessages);
+
+        return nextMessages;
+      });
+    },
+    [dispatchMessagesUpdated]
+  );
 
   const fetchMessages = useCallback(async () => {
     const shouldScroll = isNearBottom();
@@ -91,24 +116,6 @@ export function TicketMessagesPanel({
       setTimeout(scrollToBottom, 80);
     }
   }, [scrollToBottom]);
-
-  useEffect(() => {
-    const signature = getMessagesSignature(messages);
-
-    if (!hasInitialSignatureSaved.current) {
-      hasInitialSignatureSaved.current = true;
-      return;
-    }
-
-    window.dispatchEvent(
-      new CustomEvent("pulsedesk:messages-updated", {
-        detail: {
-          ticketId,
-          signature,
-        },
-      })
-    );
-  }, [messages, ticketId]);
 
   useEffect(() => {
     const channel = supabase
