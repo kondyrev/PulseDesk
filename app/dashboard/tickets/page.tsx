@@ -88,6 +88,12 @@ export default async function TicketsPage() {
           workspaceId,
         },
         include: {
+          readStates: {
+            where: {
+              userId: user.id,
+            },
+            take: 1,
+          },
           messages: {
             orderBy: {
               createdAt: "desc",
@@ -151,6 +157,16 @@ export default async function TicketsPage() {
                 const activityAt =
                   ticket.messages[0]?.createdAt || ticket.createdAt;
 
+                const readState = ticket.readStates[0];
+                const lastReadAt = readState?.lastReadAt;
+
+                const unreadCount = ticket.messages.filter((message) => {
+                  if (message.senderType !== "customer") return false;
+                  if (!lastReadAt) return true;
+
+                  return message.createdAt > lastReadAt;
+                }).length;
+
                 const view = getStatusView(ticket.status);
 
                 return (
@@ -169,6 +185,12 @@ export default async function TicketsPage() {
                           />
                           {view.label}
                         </span>
+
+                        {unreadCount > 0 ? (
+                          <span className="inline-flex items-center rounded-full bg-red-600 px-2.5 py-1 text-xs font-bold text-white shadow-sm">
+                            {unreadCount}
+                          </span>
+                        ) : null}
 
                         <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600 ring-1 ring-blue-100">
                           {ticket.priority === "normal"
