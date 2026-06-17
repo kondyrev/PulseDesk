@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type WidgetSettings = {
   publicWidgetKey: string;
@@ -17,6 +17,17 @@ export default function DashboardSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const installCode = useMemo(() => {
+    if (!settings) return "";
+
+    return `<script
+  src="https://pulsedesk.ru/widget.js"
+  data-key="${settings.publicWidgetKey}"
+  async
+></script>`;
+  }, [settings]);
 
   useEffect(() => {
     async function loadSettings() {
@@ -41,6 +52,7 @@ export default function DashboardSettingsPage() {
 
     setSaving(true);
     setMessage("");
+    setCopied(false);
 
     const response = await fetch("/api/settings/widget", {
       method: "PATCH",
@@ -61,6 +73,18 @@ export default function DashboardSettingsPage() {
 
     setSettings(data.settings);
     setMessage("Настройки сохранены.");
+  }
+
+  async function handleCopyInstallCode() {
+    if (!installCode) return;
+
+    await navigator.clipboard.writeText(installCode);
+
+    setCopied(true);
+
+    window.setTimeout(() => {
+      setCopied(false);
+    }, 1600);
   }
 
   if (loading) {
@@ -249,7 +273,13 @@ export default function DashboardSettingsPage() {
                   </p>
                 </div>
 
-                <div className="mt-5 flex justify-end">
+                <div
+                  className={`mt-5 flex ${
+                    settings.position === "bottom_left"
+                      ? "justify-start"
+                      : "justify-end"
+                  }`}
+                >
                   <div
                     className="flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg"
                     style={{ backgroundColor: settings.primaryColor }}
@@ -261,16 +291,21 @@ export default function DashboardSettingsPage() {
             </div>
 
             <div className="rounded-[32px] border border-black/5 bg-white p-6 shadow-sm">
-              <div className="mb-3 text-sm font-semibold text-zinc-400">
-                Код установки
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="text-sm font-semibold text-zinc-400">
+                  Код установки
+                </div>
+
+                <button
+                  onClick={handleCopyInstallCode}
+                  className="rounded-xl bg-zinc-100 px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-200"
+                >
+                  {copied ? "Скопировано" : "Скопировать"}
+                </button>
               </div>
 
               <pre className="overflow-x-auto rounded-2xl bg-zinc-950 p-4 text-xs leading-relaxed text-white">
-                {`<script
-  src="https://pulsedesk.ru/widget.js"
-  data-key="${settings.publicWidgetKey}"
-  async
-></script>`}
+                {installCode}
               </pre>
             </div>
           </div>

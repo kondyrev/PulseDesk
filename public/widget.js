@@ -16,6 +16,8 @@
     company_name: "",
     title: "Поддержка",
     subtitle: "Обычно отвечаем в течение нескольких минут",
+    primary_color: "#000000",
+    position: "bottom_right",
   };
 
   const styles = document.createElement("style");
@@ -28,7 +30,6 @@
 
     .pd-launcher {
       position: fixed;
-      right: 24px;
       bottom: 24px;
       width: 64px;
       height: 64px;
@@ -46,7 +47,6 @@
 
     .pd-panel {
       position: fixed;
-      right: 24px;
       bottom: 104px;
       width: 380px;
       min-height: 0;
@@ -223,6 +223,19 @@
       opacity: 0.6;
       cursor: not-allowed;
     }
+
+    @media (max-width: 520px) {
+      .pd-panel {
+        left: 16px !important;
+        right: 16px !important;
+        width: auto;
+      }
+
+      .pd-launcher {
+        right: 18px !important;
+        left: auto !important;
+      }
+    }
   `;
 
   document.head.appendChild(styles);
@@ -254,17 +267,57 @@
   const titleElement = root.querySelector(".pd-title");
   const subtitleElement = root.querySelector(".pd-subtitle");
 
+  function normalizeColor(color) {
+    if (typeof color === "string" && /^#[0-9A-Fa-f]{6}$/.test(color)) {
+      return color;
+    }
+
+    return "#000000";
+  }
+
   function applyWidgetSettings() {
     const companyName = widgetSettings.company_name
       ? widgetSettings.company_name.trim()
       : "";
 
     const title = widgetSettings.title || "Поддержка";
+    const color = normalizeColor(widgetSettings.primary_color);
+    const position = widgetSettings.position || "bottom_right";
 
     titleElement.innerText = companyName ? `${title} ${companyName}` : title;
 
     subtitleElement.innerText =
       widgetSettings.subtitle || "Обычно отвечаем в течение нескольких минут";
+
+    launcher.style.backgroundColor = color;
+
+    const buttons = root.querySelectorAll(
+      ".pd-send, .pd-chat-send, .pd-new-ticket"
+    );
+
+    buttons.forEach((button) => {
+      button.style.backgroundColor = color;
+    });
+
+    const customerMessages = root.querySelectorAll(".pd-message-customer");
+
+    customerMessages.forEach((message) => {
+      message.style.backgroundColor = color;
+    });
+
+    if (position === "bottom_left") {
+      launcher.style.left = "24px";
+      launcher.style.right = "auto";
+
+      panel.style.left = "24px";
+      panel.style.right = "auto";
+    } else {
+      launcher.style.right = "24px";
+      launcher.style.left = "auto";
+
+      panel.style.right = "24px";
+      panel.style.left = "auto";
+    }
   }
 
   async function loadWidgetSettings() {
@@ -297,7 +350,6 @@
   });
 
   let ticketId = localStorage.getItem(`pulsedesk-ticket-${publicWidgetKey}`);
-
   let isTyping = false;
 
   function renderMessages(messages) {
@@ -320,6 +372,10 @@
       `;
 
       div.innerText = message.content;
+
+      if (message.sender_type === "customer") {
+        div.style.backgroundColor = normalizeColor(widgetSettings.primary_color);
+      }
 
       messagesContainer.appendChild(div);
     });
@@ -349,6 +405,7 @@
     `;
 
     renderMessages(messages || []);
+    applyWidgetSettings();
 
     const newTicketButton = body.querySelector(".pd-new-ticket");
 
@@ -405,6 +462,8 @@
           </div>
         </div>
       `;
+
+      applyWidgetSettings();
 
       const input = body.querySelector(".pd-chat-input");
       const sendButton = body.querySelector(".pd-chat-send");
@@ -471,6 +530,7 @@
     }
 
     renderMessages(data.messages);
+    applyWidgetSettings();
   }
 
   function renderForm() {
@@ -502,6 +562,8 @@
         </button>
       </div>
     `;
+
+    applyWidgetSettings();
 
     const sendButton = body.querySelector(".pd-send");
 
