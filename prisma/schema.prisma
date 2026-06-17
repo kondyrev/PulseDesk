@@ -1,0 +1,150 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String @id @default(uuid())
+  email        String @unique
+  passwordHash String
+
+  firstName String?
+  lastName  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships WorkspaceMember[]
+  assignedTickets Ticket[] @relation("AssignedTickets")
+
+  @@map("users")
+}
+
+model Workspace {
+  id   String @id @default(uuid())
+  name String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members       WorkspaceMember[]
+  tickets       Ticket[]
+  widgetSetting WidgetSetting?
+
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id String @id @default(uuid())
+
+  workspaceId String
+  userId      String
+
+  role WorkspaceRole
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([workspaceId, userId])
+  @@map("workspace_members")
+}
+
+enum WorkspaceRole {
+  owner
+  admin
+  operator
+}
+
+model Ticket {
+  id String @id @default(uuid())
+
+  workspaceId String
+
+  title String
+
+  customerName  String?
+  customerEmail String?
+
+  status   TicketStatus   @default(new)
+  priority TicketPriority @default(normal)
+  source   TicketSource   @default(widget)
+
+  assignedToId String?
+  assignedTo   User? @relation("AssignedTickets", fields: [assignedToId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  messages TicketMessage[]
+
+  @@map("tickets")
+}
+
+enum TicketStatus {
+  new
+  open
+  waiting_customer
+  waiting_operator
+  resolved
+  closed
+}
+
+enum TicketPriority {
+  low
+  normal
+  high
+  urgent
+}
+
+enum TicketSource {
+  widget
+  email
+  manual
+}
+
+model TicketMessage {
+  id String @id @default(uuid())
+
+  ticketId String
+
+  senderType MessageSender
+
+  content String
+
+  pageUrl String?
+
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@map("ticket_messages")
+}
+
+enum MessageSender {
+  customer
+  operator
+  system
+}
+
+model WidgetSetting {
+  id String @id @default(uuid())
+
+  workspaceId String @unique
+
+  title       String @default("Поддержка")
+  description String @default("Обычно отвечаем в течение нескольких минут")
+
+  primaryColor String @default("#000000")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("widget_settings")
+}
