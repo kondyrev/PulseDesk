@@ -20,6 +20,7 @@ model User {
 
   memberships     WorkspaceMember[]
   assignedTickets Ticket[]          @relation("AssignedTickets")
+  readStates      TicketReadState[]
 
   @@map("users")
 }
@@ -76,10 +77,11 @@ model Ticket {
   source   TicketSource   @default(widget)
 
   assignedToId String?
-  assignedTo   User?   @relation("AssignedTickets", fields: [assignedToId], references: [id])
+  assignedTo   User?     @relation("AssignedTickets", fields: [assignedToId], references: [id])
   workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  messages TicketMessage[]
+  messages   TicketMessage[]
+  readStates TicketReadState[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -124,6 +126,21 @@ model TicketMessage {
   createdAt DateTime @default(now())
 
   @@map("ticket_messages")
+}
+
+model TicketReadState {
+  id String @id @default(uuid())
+
+  ticketId String
+  userId   String
+
+  lastReadAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([ticketId, userId])
+  @@map("ticket_read_states")
 }
 
 enum MessageSender {
