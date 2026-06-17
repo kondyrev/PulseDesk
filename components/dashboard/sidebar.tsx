@@ -14,6 +14,7 @@ const items = [
     label: "Обращения",
     href: "/dashboard/tickets",
     icon: Inbox,
+    showCounter: true,
   },
   {
     label: "ИИ-ассистент",
@@ -27,7 +28,11 @@ const items = [
   },
 ];
 
-export function DashboardSidebar() {
+export function DashboardSidebar({
+  unreadTicketsCount = 0,
+}: {
+  unreadTicketsCount?: number;
+}) {
   const pathname = usePathname();
 
   return (
@@ -50,6 +55,11 @@ export function DashboardSidebar() {
               ? pathname === "/dashboard"
               : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
+          const counter =
+            item.showCounter && unreadTicketsCount > 0
+              ? unreadTicketsCount
+              : null;
+
           return (
             <Link
               key={item.href}
@@ -61,7 +71,20 @@ export function DashboardSidebar() {
               }
             >
               <Icon className="h-4 w-4" />
-              {item.label}
+
+              <span className="flex-1">{item.label}</span>
+
+              {counter ? (
+                <span
+                  className={
+                    active
+                      ? "rounded-full bg-white px-2 py-0.5 text-xs font-bold text-black"
+                      : "rounded-full bg-red-600 px-2 py-0.5 text-xs font-bold text-white"
+                  }
+                >
+                  {counter}
+                </span>
+              ) : null}
             </Link>
           );
         })}
