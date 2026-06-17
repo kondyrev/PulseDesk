@@ -18,7 +18,7 @@ type TicketStatus =
   | "resolved"
   | "closed";
 
-type TicketsFilter = "all" | "waiting_operator" | "waiting_customer" | "closed";
+type TicketsFilter = "all" | "waiting_operator" | "waiting_customer";
 
 const statusView: Record<
   TicketStatus,
@@ -65,32 +65,53 @@ function getStatusView(status: string) {
 }
 
 function getFilter(value?: string): TicketsFilter {
-  if (
-    value === "waiting_operator" ||
-    value === "waiting_customer" ||
-    value === "closed"
-  ) {
+  if (value === "waiting_operator" || value === "waiting_customer") {
     return value;
   }
 
   return "all";
 }
 
-function getFilterHref(filter: TicketsFilter) {
-  if (filter === "all") {
-    return "/dashboard/tickets";
+function getFilterHref(filter: TicketsFilter, showClosed: boolean) {
+  const params = new URLSearchParams();
+
+  if (filter !== "all") {
+    params.set("status", filter);
   }
 
-  return `/dashboard/tickets?status=${filter}`;
+  if (showClosed) {
+    params.set("showClosed", "true");
+  }
+
+  const query = params.toString();
+
+  return query ? `/dashboard/tickets?${query}` : "/dashboard/tickets";
+}
+
+function getClosedToggleHref(activeFilter: TicketsFilter, showClosed: boolean) {
+  const params = new URLSearchParams();
+
+  if (activeFilter !== "all") {
+    params.set("status", activeFilter);
+  }
+
+  if (!showClosed) {
+    params.set("showClosed", "true");
+  }
+
+  const query = params.toString();
+
+  return query ? `/dashboard/tickets?${query}` : "/dashboard/tickets";
 }
 
 export default async function TicketsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; showClosed?: string }>;
 }) {
   const resolvedSearchParams = await searchParams;
   const activeFilter = getFilter(resolvedSearchParams.status);
+  const showClosed = resolvedSearchParams.showClosed === "true";
 
   const supabase = await createClient();
 
@@ -136,8 +157,10 @@ export default async function TicketsPage({
       })
     : [];
 
+  const activeTickets = tickets.filter((ticket) => ticket.status !== "closed");
+
   const counts = {
-    all: tickets.length,
+    active: activeTickets.length,
     waiting_operator: tickets.filter(
       (ticket) => ticket.status === "waiting_operator"
     ).length,
@@ -147,10 +170,12 @@ export default async function TicketsPage({
     closed: tickets.filter((ticket) => ticket.status === "closed").length,
   };
 
+  const visibleBaseTickets = showClosed ? tickets : activeTickets;
+
   const filteredTickets =
     activeFilter === "all"
-      ? tickets
-      : tickets.filter((ticket) => ticket.status === activeFilter);
+      ? visibleBaseTickets
+      : visibleBaseTickets.filter((ticket) => ticket.status === activeFilter);
 
   const sortedTickets = [...filteredTickets].sort((a, b) => {
     const aLast = a.messages[0]?.createdAt || a.createdAt;
@@ -166,8 +191,8 @@ export default async function TicketsPage({
   }> = [
     {
       value: "all",
-      label: "Все",
-      count: counts.all,
+      label: "Все активные",
+      count: counts.active,
     },
     {
       value: "waiting_operator",
@@ -178,11 +203,6 @@ export default async function TicketsPage({
       value: "waiting_customer",
       label: "Ждут клиента",
       count: counts.waiting_customer,
-    },
-    {
-      value: "closed",
-      label: "Закрытые",
-      count: counts.closed,
     },
   ];
 
@@ -209,14 +229,14 @@ export default async function TicketsPage({
               </div>
             </div>
 
-            <div className="mt-6 flex flex-wrap gap-2">
+            <div className="mt-6 flex flex-wrap items-center gap-2">
               {filters.map((filter) => {
                 const active = filter.value === activeFilter;
 
                 return (
                   <Link
                     key={filter.value}
-                    href={getFilterHref(filter.value)}
+                    href={getFilterHref(filter.value, showClosed)}
                     className={
                       active
                         ? "rounded-full bg-black px-4 py-2 text-sm font-semibold text-white"
@@ -236,6 +256,29 @@ export default async function TicketsPage({
                   </Link>
                 );
               })}
+
+              <Link
+                href={getClosedToggleHref(activeFilter, showClosed)}
+                className={
+                  showClosed
+                    ? "ml-1 inline-flex items-center gap-2 rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
+                    : "ml-1 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-zinc-600 ring-1 ring-black/10 transition hover:bg-zinc-50 hover:text-zinc-900"
+                }
+              >
+                <span
+                  className={
+                    showClosed
+                      ? "flex h-4 w-4 items-center justify-center rounded border border-white/50 bg-white text-[10px] text-black"
+                      : "h-4 w-4 rounded border border-zinc-300 bg-white"
+                  }
+                >
+                  {showClosed ? "✓" : ""}
+                </span>
+                Показать закрытые
+                <span className={showClosed ? "text-white/60" : "text-zinc-400"}>
+                  {counts.closed}
+                </span>
+              </Link>
             </div>
           </div>
 
