@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 
+import { TicketAiPanel } from "@/components/dashboard/tickets/ticket-ai-panel";
 import { TicketMessagesPanel } from "@/components/dashboard/tickets/ticket-messages-panel";
 import { TicketReplyForm } from "@/components/dashboard/tickets/ticket-reply-form";
 import { createClient } from "@/lib/supabase/server";
-import { TicketAiPanel } from "@/components/dashboard/tickets/ticket-ai-panel";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -54,13 +54,19 @@ export default async function TicketDetailsPage({
     .eq("ticket_id", ticket.id)
     .order("created_at", { ascending: true });
 
+  const isClosed = ticket.status === "closed";
+
   return (
     <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_360px] overflow-hidden">
       <div className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] border-r border-black/5 bg-[#f6f7f8]">
         <div className="border-b border-black/5 bg-white px-8 py-6">
           <div className="mb-3 flex items-center gap-2">
             <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">
-              {ticket.status === "new" ? "Новое" : ticket.status}
+              {ticket.status === "new"
+                ? "Новое"
+                : ticket.status === "closed"
+                  ? "Закрыто"
+                  : ticket.status}
             </span>
 
             <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600">
@@ -90,12 +96,12 @@ export default async function TicketDetailsPage({
         />
 
         <div className="border-t border-black/5 bg-white p-6">
-          <TicketReplyForm ticketId={ticket.id} />
+          <TicketReplyForm ticketId={ticket.id} isClosed={isClosed} />
         </div>
       </div>
 
       <aside className="h-full overflow-y-auto bg-white p-6">
-        <TicketAiPanel ticketId={ticket.id} />
+        <TicketAiPanel ticketId={ticket.id} isClosed={isClosed} />
       </aside>
     </div>
   );

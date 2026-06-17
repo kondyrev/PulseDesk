@@ -198,6 +198,26 @@
       min-width: 110px;
     }
 
+    .pd-closed {
+      padding: 20px;
+      background: #f6f7f8;
+      color: #333;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .pd-new-ticket {
+      margin-top: 14px;
+      height: 44px;
+      border: none;
+      border-radius: 16px;
+      background: #000;
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 0 16px;
+    }
+
     .pd-chat-send:disabled,
     .pd-send:disabled {
       opacity: 0.6;
@@ -307,6 +327,38 @@
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
   }
 
+  function renderClosedState(messages) {
+    panel.classList.remove("pd-panel-form");
+    panel.classList.add("pd-panel-chat");
+
+    body.innerHTML = `
+      <div class="pd-chat">
+        <div class="pd-messages"></div>
+
+        <div class="pd-closed">
+          <strong>Обращение закрыто.</strong>
+          <div style="margin-top: 6px;">
+            Если вопрос ещё актуален, создайте новое обращение.
+          </div>
+
+          <button class="pd-new-ticket">
+            Создать новое обращение
+          </button>
+        </div>
+      </div>
+    `;
+
+    renderMessages(messages || []);
+
+    const newTicketButton = body.querySelector(".pd-new-ticket");
+
+    newTicketButton.addEventListener("click", () => {
+      localStorage.removeItem(`pulsedesk-ticket-${publicWidgetKey}`);
+      ticketId = null;
+      renderForm();
+    });
+  }
+
   async function loadMessages() {
     if (!ticketId || isTyping) return;
 
@@ -323,6 +375,11 @@
 
       renderForm();
 
+      return;
+    }
+
+    if (data.closed) {
+      renderClosedState(data.messages || []);
       return;
     }
 
@@ -401,6 +458,11 @@
 
         sendButton.disabled = false;
         sendButton.innerText = "Отправить";
+
+        if (result.closed) {
+          renderClosedState(data.messages || []);
+          return;
+        }
 
         if (!result.ok) return;
 

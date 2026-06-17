@@ -50,7 +50,7 @@ export async function GET(
 
     const { data: ticket, error: ticketError } = await supabase
       .from("tickets")
-      .select("id")
+      .select("id, status")
       .eq("id", id)
       .eq("workspace_id", workspaceId)
       .single();
@@ -79,6 +79,7 @@ export async function GET(
     return NextResponse.json(
       {
         ok: true,
+        closed: ticket.status === "closed",
         messages: messages || [],
       },
       { headers: corsHeaders }

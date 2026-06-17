@@ -16,159 +16,151 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    const {
-      publicWidgetKey,
-      ticketId,
-      customerEmail,
-      customerName,
-      message,
-      pageUrl,
-    } = body;
+    const publicWidgetKey = String(body.publicWidgetKey || "").trim();
+    const ticketId = body.ticketId ? String(body.ticketId).trim() : "";
+    const customerName = String(body.customerName || "").trim();
+    const customerEmail = String(body.customerEmail || "").trim();
+    const message = String(body.message || "").trim();
+    const pageUrl = String(body.pageUrl || "").trim();
 
-    const cleanMessage = message?.trim();
-
-    if (!publicWidgetKey || !cleanMessage) {
+    if (!publicWidgetKey || !message) {
       return NextResponse.json(
-        {
-          ok: false,
-          error: "Не заполнены обязательные поля",
-        },
-        {
-          status: 400,
-          headers: corsHeaders,
-        }
+        { error: "widget key and message are required" },
+        { status: 400, headers: corsHeaders }
       );
     }
 
     const supabase = createAdminClient();
 
-    const { data: widgetSettings, error: widgetError } =
-      await supabase
-        .from("widget_settings")
-        .select("workspace_id, is_enabled")
-        .eq("public_widget_key", publicWidgetKey)
-        .single();
+    const { data: widgetSettings, error: widgetError } = await supabase
+      .from("widget_settings")
+      .select("workspace_id, is_enabled")
+      .eq("public_widget_key", publicWidgetKey)
+      .single();
 
     if (widgetError || !widgetSettings?.is_enabled) {
       return NextResponse.json(
-        {
-          ok: false,
-          error: "Виджет отключен или не найден",
-        },
-        {
-          status: 403,
-          headers: corsHeaders,
-        }
+        { error: "Виджет отключен или не найден" },
+        { status: 403, headers: corsHeaders }
       );
     }
 
     const workspaceId = widgetSettings.workspace_id;
 
-    let finalTicketId = ticketId;
-
-    if (finalTicketId) {
-      const { data: existingTicket } = await supabase
+    if (ticketId) {
+      const { data: ticket, error: ticketError } = await supabase
         .from("tickets")
-        .select("id")
-        .eq("id", finalTicketId)
+        .select("id, status")
+        .eq("id", ticketId)
         .eq("workspace_id", workspaceId)
         .single();
 
-      if (!existingTicket) {
-        finalTicketId = null;
-      }
-    }
-
-    if (!finalTicketId) {
-      const title =
-        cleanMessage.length > 80
-          ? `${cleanMessage.slice(0, 80)}...`
-          : cleanMessage;
-
-      const { data: ticket, error: ticketError } =
-        await supabase
-          .from("tickets")
-          .insert({
-            workspace_id: workspaceId,
-            title,
-            customer_email: customerEmail || null,
-            customer_name: customerName || null,
-            source: "widget",
-            status: "new",
-            priority: "normal",
-          })
-          .select("id")
-          .single();
-
       if (ticketError || !ticket) {
         return NextResponse.json(
-          {
-            ok: false,
-            error:
-              ticketError?.message ||
-              "Не удалось создать обращение",
-          },
-          {
-            status: 500,
-            headers: corsHeaders,
-          }
+          { error: "Обращение не найдено" },
+          { status: 404, headers: corsHeaders }
         );
       }
 
-      finalTicketId = ticket.id;
+      if (ticket.status === "closed") {
+        return NextResponse.json(
+          {
+            error:
+              "Обращение уже закрыто. Пожалуйста, создайте новое обращение.",
+            closed: true,
+          },
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      const { data: createdMessage, error: messageError } = await supabase
+        .from("ticket_messages")
+        .insert({
+          workspace_id: workspaceId,
+          ticket_id: ticket.id,
+          sender_type: "customer",
+          content: message,
+          page_url: pageUrl || null,
+        })
+        .select("id, sender_type, content, created_at")
+        .single();
+
+      if (messageError) {
+        return NextResponse.json(
+          { error: messageError.message },
+          { status: 500, headers: corsHeaders }
+        );
+      }
+
+      await supabase
+        .from("tickets")
+        .update({
+          status: "waiting_operator",
+        })
+        .eq("id", ticket.id)
+        .eq("workspace_id", workspaceId);
+
+      return NextResponse.json(
+        {
+          ok: true,
+          ticketId: ticket.id,
+          message: createdMessage,
+        },
+        { headers: corsHeaders }
+      );
     }
 
-    const { error: messageError } = await supabase
+    const title = message.length > 80 ? `${message.slice(0, 80)}...` : message;
+
+    const { data: ticket, error: ticketCreateError } = await supabase
+      .from("tickets")
+      .insert({
+        workspace_id: workspaceId,
+        title,
+        customer_name: customerName || null,
+        customer_email: customerEmail || null,
+        status: "new",
+        priority: "normal",
+        source: "widget",
+      })
+      .select("id")
+      .single();
+
+    if (ticketCreateError || !ticket) {
+      return NextResponse.json(
+        { error: ticketCreateError?.message || "Не удалось создать обращение" },
+        { status: 500, headers: corsHeaders }
+      );
+    }
+
+    const { error: messageCreateError } = await supabase
       .from("ticket_messages")
       .insert({
-        ticket_id: finalTicketId,
         workspace_id: workspaceId,
+        ticket_id: ticket.id,
         sender_type: "customer",
-        customer_email: customerEmail || null,
-        content: cleanMessage,
+        content: message,
         page_url: pageUrl || null,
       });
 
-    await supabase
-      .from("tickets")
-      .update({
-        last_message_at: new Date().toISOString(),
-        last_customer_message_at: new Date().toISOString(),
-      })
-      .eq("id", finalTicketId);
-
-    if (messageError) {
+    if (messageCreateError) {
       return NextResponse.json(
-        {
-          ok: false,
-          error: messageError.message,
-        },
-        {
-          status: 500,
-          headers: corsHeaders,
-        }
+        { error: messageCreateError.message },
+        { status: 500, headers: corsHeaders }
       );
     }
 
     return NextResponse.json(
       {
         ok: true,
-        ticketId: finalTicketId,
+        ticketId: ticket.id,
       },
-      {
-        headers: corsHeaders,
-      }
+      { headers: corsHeaders }
     );
   } catch {
     return NextResponse.json(
-      {
-        ok: false,
-        error: "Некорректный запрос",
-      },
-      {
-        status: 400,
-        headers: corsHeaders,
-      }
+      { error: "Ошибка сервера" },
+      { status: 500, headers: corsHeaders }
     );
   }
 }

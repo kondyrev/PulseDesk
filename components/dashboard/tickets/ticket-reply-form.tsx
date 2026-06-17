@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 
-export function TicketReplyForm({ ticketId }: { ticketId: string }) {
+export function TicketReplyForm({
+  ticketId,
+  isClosed,
+}: {
+  ticketId: string;
+  isClosed: boolean;
+}) {
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
@@ -12,7 +18,7 @@ export function TicketReplyForm({ ticketId }: { ticketId: string }) {
     function handleInsertAiReply(event: Event) {
       const customEvent = event as CustomEvent<{ text: string }>;
 
-      if (!customEvent.detail?.text) return;
+      if (!customEvent.detail?.text || isClosed) return;
 
       setContent(customEvent.detail.text);
       setError("");
@@ -26,9 +32,11 @@ export function TicketReplyForm({ ticketId }: { ticketId: string }) {
         handleInsertAiReply
       );
     };
-  }, []);
+  }, [isClosed]);
 
   async function handleSuggestReply() {
+    if (isClosed) return;
+
     setAiLoading(true);
     setError("");
 
@@ -41,7 +49,7 @@ export function TicketReplyForm({ ticketId }: { ticketId: string }) {
     setAiLoading(false);
 
     if (!response.ok || !data.ok) {
-      setError(data.error || "ИИ не смог предложить ответ.");
+      setError(data.error || "Не удалось предложить ответ.");
       return;
     }
 
@@ -49,6 +57,8 @@ export function TicketReplyForm({ ticketId }: { ticketId: string }) {
   }
 
   async function handleSubmit() {
+    if (isClosed) return;
+
     const text = content.trim();
 
     if (!text) {
@@ -79,6 +89,20 @@ export function TicketReplyForm({ ticketId }: { ticketId: string }) {
     setContent("");
   }
 
+  if (isClosed) {
+    return (
+      <div className="rounded-[32px] border border-emerald-200 bg-emerald-50 p-6">
+        <div className="text-sm font-semibold text-emerald-700">
+          ✓ Обращение закрыто
+        </div>
+
+        <p className="mt-2 text-sm text-emerald-600">
+          Новые ответы оператора недоступны.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-[32px] border border-black/5 bg-[#f6f7f8] p-4">
       <textarea
@@ -89,7 +113,7 @@ export function TicketReplyForm({ ticketId }: { ticketId: string }) {
         }}
         placeholder={
           aiLoading
-            ? "ИИ анализирует обращение..."
+            ? "Подготавливаем ответ..."
             : "Напишите ответ клиенту..."
         }
         disabled={aiLoading}
@@ -108,7 +132,7 @@ export function TicketReplyForm({ ticketId }: { ticketId: string }) {
           disabled={loading || aiLoading}
           className="rounded-2xl bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {aiLoading ? "ИИ думает..." : "Предложить ответ"}
+          {aiLoading ? "Готовим..." : "Предложить ответ"}
         </button>
 
         <button

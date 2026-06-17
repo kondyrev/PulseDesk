@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type AiStatusSuggestion = "waiting_operator" | "waiting_customer" | "resolved";
 
@@ -21,19 +22,28 @@ function isKnownStatus(value: string): value is AiStatusSuggestion {
   );
 }
 
-export function TicketAiPanel({ ticketId }: { ticketId: string }) {
+export function TicketAiPanel({
+  ticketId,
+  isClosed,
+}: {
+  ticketId: string;
+  isClosed: boolean;
+}) {
+  const router = useRouter();
   const refreshTimeoutRef = useRef<number | null>(null);
 
   const [data, setData] = useState<AiSummary | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isClosed);
   const [refreshing, setRefreshing] = useState(false);
   const [closing, setClosing] = useState(false);
-  const [closed, setClosed] = useState(false);
+  const [closed, setClosed] = useState(isClosed);
   const [error, setError] = useState("");
   const [showDetails, setShowDetails] = useState(false);
 
   const loadSummary = useCallback(
     async ({ silent = false }: { silent?: boolean } = {}) => {
+      if (closed) return;
+
       if (silent) {
         setRefreshing(true);
       } else {
@@ -58,10 +68,12 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
 
       setData(result.summary);
     },
-    [ticketId]
+    [closed, ticketId]
   );
 
   useEffect(() => {
+    if (closed) return;
+
     loadSummary();
 
     function handleMessagesUpdated(event: Event) {
@@ -92,10 +104,10 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
         handleMessagesUpdated
       );
     };
-  }, [loadSummary, ticketId]);
+  }, [closed, loadSummary, ticketId]);
 
   function handleInsertReply() {
-    if (!data?.suggestedReply) return;
+    if (!data?.suggestedReply || closed) return;
 
     window.dispatchEvent(
       new CustomEvent("pulsedesk:insert-ai-reply", {
@@ -130,15 +142,43 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
     }
 
     setClosed(true);
+    setData(null);
 
-    setData((current) =>
-      current
-        ? {
-            ...current,
-            statusSuggestion: "resolved",
-            statusReason: "Обращение закрыто оператором.",
-          }
-        : current
+    window.dispatchEvent(
+      new CustomEvent("pulsedesk:ticket-closed", {
+        detail: {
+          ticketId,
+        },
+      })
+    );
+
+    router.refresh();
+  }
+
+  if (closed) {
+    return (
+      <div className="sticky top-6 space-y-6">
+        <div className="rounded-[32px] border border-emerald-200 bg-emerald-50 p-6">
+          <div className="text-base font-semibold text-emerald-700">
+            ✓ Обращение закрыто
+          </div>
+
+          <p className="mt-2 text-sm text-emerald-600">
+            Новые сообщения и рекомендации недоступны.
+          </p>
+        </div>
+
+        <div className="rounded-[32px] border border-black/5 p-6">
+          <div className="text-sm font-semibold text-zinc-500">
+            История обращения сохранена.
+          </div>
+
+          <p className="mt-2 text-sm leading-relaxed text-zinc-500">
+            При необходимости клиент сможет создать новое обращение через
+            виджет поддержки.
+          </p>
+        </div>
+      </div>
     );
   }
 
@@ -198,19 +238,7 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
       </div>
 
       <div className="rounded-[32px] border border-black/5 p-6">
-        {closed ? (
-          <>
-            <div className="text-base font-semibold text-green-700">
-              ✓ Обращение закрыто
-            </div>
-
-            <p className="mt-2 text-sm text-zinc-600">
-              Статус обращения обновлён.
-            </p>
-          </>
-        ) : null}
-
-        {!closed && status === "resolved" ? (
+        {status === "resolved" ? (
           <>
             <div className="text-base font-semibold text-green-700">
               ✓ Можно закрыть обращение
@@ -230,7 +258,7 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
           </>
         ) : null}
 
-        {!closed && status === "waiting_customer" ? (
+        {status === "waiting_customer" ? (
           <>
             <div className="text-base font-semibold text-blue-700">
               ⏳ Ждём клиента
@@ -242,7 +270,7 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
           </>
         ) : null}
 
-        {!closed && status === "waiting_operator" ? (
+        {status === "waiting_operator" ? (
           <>
             <div className="text-base font-semibold text-orange-700">
               ⚠ Нужен ответ оператора
