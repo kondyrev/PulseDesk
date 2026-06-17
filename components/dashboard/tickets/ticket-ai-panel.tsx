@@ -38,6 +38,18 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
     loadSummary();
   }, [ticketId]);
 
+  function handleInsertReply() {
+    if (!data?.suggestedReply) return;
+
+    window.dispatchEvent(
+      new CustomEvent("pulsedesk:insert-ai-reply", {
+        detail: {
+          text: data.suggestedReply,
+        },
+      })
+    );
+  }
+
   if (loading) {
     return (
       <div className="sticky top-6 rounded-[32px] border border-black/5 p-6 text-sm text-zinc-500">
@@ -92,6 +104,13 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
         <p className="text-sm leading-relaxed text-zinc-600">
           {data.suggestedReply}
         </p>
+
+        <button
+          onClick={handleInsertReply}
+          className="mt-4 rounded-2xl bg-black px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+        >
+          Вставить в ответ
+        </button>
       </div>
     </div>
   );

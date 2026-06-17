@@ -1,12 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function TicketReplyForm({ ticketId }: { ticketId: string }) {
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    function handleInsertAiReply(event: Event) {
+      const customEvent = event as CustomEvent<{ text: string }>;
+
+      if (!customEvent.detail?.text) return;
+
+      setContent(customEvent.detail.text);
+      setError("");
+    }
+
+    window.addEventListener("pulsedesk:insert-ai-reply", handleInsertAiReply);
+
+    return () => {
+      window.removeEventListener(
+        "pulsedesk:insert-ai-reply",
+        handleInsertAiReply
+      );
+    };
+  }, []);
 
   async function handleSuggestReply() {
     setAiLoading(true);
