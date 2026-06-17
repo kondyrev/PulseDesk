@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import { CloseTicketButton } from "@/components/dashboard/tickets/close-ticket-button";
 import { TicketMessagesPanel } from "@/components/dashboard/tickets/ticket-messages-panel";
 import { TicketReplyForm } from "@/components/dashboard/tickets/ticket-reply-form";
 import { prisma } from "@/lib/prisma";
@@ -131,9 +132,12 @@ export default async function TicketDetailsPage({
                 </div>
 
                 <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-                  Сейчас проверяем основной контур обращений на PostgreSQL.
-                  ИИ-помощник подключим следующим этапом.
+                  Клиент и оператор могут продолжать переписку.
                 </p>
+
+                <div className="mt-5">
+                  <CloseTicketButton ticketId={ticket.id} isClosed={isClosed} />
+                </div>
               </>
             )}
           </div>
