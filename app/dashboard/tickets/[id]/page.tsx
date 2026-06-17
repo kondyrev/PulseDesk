@@ -54,6 +54,23 @@ export default async function TicketDetailsPage({
     notFound();
   }
 
+  await prisma.ticketReadState.upsert({
+    where: {
+      ticketId_userId: {
+        ticketId: ticket.id,
+        userId: user.id,
+      },
+    },
+    update: {
+      lastReadAt: new Date(),
+    },
+    create: {
+      ticketId: ticket.id,
+      userId: user.id,
+      lastReadAt: new Date(),
+    },
+  });
+
   const isClosed = ticket.status === "closed";
 
   const initialMessages = ticket.messages.map((message) => ({
@@ -74,7 +91,11 @@ export default async function TicketDetailsPage({
                 ? "Новое"
                 : ticket.status === "closed"
                   ? "Закрыто"
-                  : ticket.status}
+                  : ticket.status === "waiting_operator"
+                    ? "Ждёт оператора"
+                    : ticket.status === "waiting_customer"
+                      ? "Ждёт клиента"
+                      : ticket.status}
             </span>
 
             <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600">
