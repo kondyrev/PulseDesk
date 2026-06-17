@@ -54,6 +54,20 @@ export default async function TicketDetailsPage({
     notFound();
   }
 
+  await prisma.user.upsert({
+    where: {
+      id: user.id,
+    },
+    update: {
+      email: user.email || "",
+    },
+    create: {
+      id: user.id,
+      email: user.email || "",
+      passwordHash: "supabase-auth",
+    },
+  });
+
   await prisma.ticketReadState.upsert({
     where: {
       ticketId_userId: {
