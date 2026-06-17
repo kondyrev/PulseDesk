@@ -18,8 +18,8 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  memberships WorkspaceMember[]
-  assignedTickets Ticket[] @relation("AssignedTickets")
+  memberships     WorkspaceMember[]
+  assignedTickets Ticket[]          @relation("AssignedTickets")
 
   @@map("users")
 }
@@ -76,14 +76,13 @@ model Ticket {
   source   TicketSource   @default(widget)
 
   assignedToId String?
-  assignedTo   User? @relation("AssignedTickets", fields: [assignedToId], references: [id])
+  assignedTo   User?   @relation("AssignedTickets", fields: [assignedToId], references: [id])
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  messages TicketMessage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-
-  messages TicketMessage[]
 
   @@map("tickets")
 }
@@ -118,12 +117,11 @@ model TicketMessage {
   senderType MessageSender
 
   content String
-
   pageUrl String?
 
-  createdAt DateTime @default(now())
-
   ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
 
   @@map("ticket_messages")
 }
@@ -139,12 +137,25 @@ model WidgetSetting {
 
   workspaceId String @unique
 
-  title       String @default("Поддержка")
-  description String @default("Обычно отвечаем в течение нескольких минут")
+  publicWidgetKey String  @unique
+  isEnabled       Boolean @default(true)
 
-  primaryColor String @default("#000000")
+  companyName String?
+  title       String  @default("Поддержка")
+  subtitle    String  @default("Обычно отвечаем в течение нескольких минут")
+
+  primaryColor String         @default("#000000")
+  position     WidgetPosition @default(bottom_right)
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@map("widget_settings")
+}
+
+enum WidgetPosition {
+  bottom_right
+  bottom_left
 }
