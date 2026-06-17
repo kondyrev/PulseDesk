@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { createAdminClient } from "@/lib/supabase/admin";
+import { prisma } from "@/lib/prisma";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,45 +19,41 @@ export async function GET(request: Request) {
 
     if (!publicWidgetKey) {
       return NextResponse.json(
-        { ok: false, error: "Ключ виджета не указан" },
+        { error: "Widget key is required" },
         { status: 400, headers: corsHeaders }
       );
     }
 
-    const supabase = createAdminClient();
+    const settings = await prisma.widgetSetting.findUnique({
+      where: {
+        publicWidgetKey,
+      },
+    });
 
-    const { data: settings, error } = await supabase
-      .from("widget_settings")
-      .select(
-        `
-        company_name,
-        title,
-        subtitle,
-        welcome_message,
-        primary_color,
-        is_enabled
-      `
-      )
-      .eq("public_widget_key", publicWidgetKey)
-      .single();
-
-    if (error || !settings?.is_enabled) {
+    if (!settings || !settings.isEnabled) {
       return NextResponse.json(
-        { ok: false, error: "Виджет отключен или не найден" },
-        { status: 404, headers: corsHeaders }
+        { error: "Виджет отключен или не найден" },
+        { status: 403, headers: corsHeaders }
       );
     }
 
     return NextResponse.json(
       {
         ok: true,
-        settings,
+        settings: {
+          company_name: settings.companyName || "",
+          title: settings.title,
+          subtitle: settings.subtitle,
+          primary_color: settings.primaryColor,
+          position: settings.position,
+          is_enabled: settings.isEnabled,
+        },
       },
       { headers: corsHeaders }
     );
   } catch {
     return NextResponse.json(
-      { ok: false, error: "Ошибка сервера" },
+      { error: "Ошибка сервера" },
       { status: 500, headers: corsHeaders }
     );
   }
