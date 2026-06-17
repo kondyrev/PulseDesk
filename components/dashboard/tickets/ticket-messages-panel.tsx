@@ -1,8 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
-import { createClient } from "@/lib/supabase/client";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type TicketMessage = {
   id: string;
@@ -23,7 +21,6 @@ export function TicketMessagesPanel({
   ticketId: string;
   initialMessages: TicketMessage[];
 }) {
-  const supabase = useMemo(() => createClient(), []);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const hasInitialScrolled = useRef(false);
   const messagesSignatureRef = useRef(getMessagesSignature(initialMessages));
@@ -48,29 +45,7 @@ export function TicketMessagesPanel({
     );
   }, []);
 
-  const dispatchMessagesUpdated = useCallback(
-    (nextMessages: TicketMessage[]) => {
-      const nextSignature = getMessagesSignature(nextMessages);
-
-      if (nextSignature === messagesSignatureRef.current) {
-        return;
-      }
-
-      messagesSignatureRef.current = nextSignature;
-
-      window.dispatchEvent(
-        new CustomEvent("pulsedesk:messages-updated", {
-          detail: {
-            ticketId,
-            signature: nextSignature,
-          },
-        })
-      );
-    },
-    [ticketId]
-  );
-
-  const mergeMessages = useCallback(
+  const updateMessages = useCallback(
     (incoming: TicketMessage[]) => {
       setMessages((current) => {
         const map = new Map<string, TicketMessage>();
@@ -81,34 +56,47 @@ export function TicketMessagesPanel({
 
         const nextMessages = Array.from(map.values()).sort(
           (a, b) =>
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            new Date(a.created_at).getTime() -
+            new Date(b.created_at).getTime()
         );
 
-        dispatchMessagesUpdated(nextMessages);
+        const nextSignature = getMessagesSignature(nextMessages);
+
+        if (nextSignature !== messagesSignatureRef.current) {
+          messagesSignatureRef.current = nextSignature;
+
+          window.dispatchEvent(
+            new CustomEvent("pulsedesk:messages-updated", {
+              detail: {
+                ticketId,
+                signature: nextSignature,
+              },
+            })
+          );
+        }
 
         return nextMessages;
       });
     },
-    [dispatchMessagesUpdated]
+    [ticketId]
   );
 
   const fetchMessages = useCallback(async () => {
     const shouldScroll = isNearBottom();
 
-    const { data } = await supabase
-      .from("ticket_messages")
-      .select("id, sender_type, content, page_url, created_at")
-      .eq("ticket_id", ticketId)
-      .order("created_at", { ascending: true });
+    const response = await fetch(`/api/tickets/${ticketId}/messages`);
+    const data = await response.json();
 
-    if (data) {
-      mergeMessages(data as TicketMessage[]);
-
-      if (shouldScroll) {
-        setTimeout(scrollToBottom, 50);
-      }
+    if (!response.ok || !data.ok) {
+      return;
     }
-  }, [isNearBottom, mergeMessages, scrollToBottom, supabase, ticketId]);
+
+    updateMessages(data.messages);
+
+    if (shouldScroll) {
+      setTimeout(scrollToBottom, 50);
+    }
+  }, [isNearBottom, scrollToBottom, ticketId, updateMessages]);
 
   useEffect(() => {
     if (!hasInitialScrolled.current) {
@@ -118,45 +106,14 @@ export function TicketMessagesPanel({
   }, [scrollToBottom]);
 
   useEffect(() => {
-    const channel = supabase
-      .channel(`ticket-messages-${ticketId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "ticket_messages",
-          filter: `ticket_id=eq.${ticketId}`,
-        },
-        (payload) => {
-          const shouldScroll = isNearBottom();
-          const newMessage = payload.new as TicketMessage;
-
-          mergeMessages([newMessage]);
-
-          if (shouldScroll) {
-            setTimeout(scrollToBottom, 50);
-          }
-        }
-      )
-      .subscribe();
-
     const interval = window.setInterval(() => {
       fetchMessages();
     }, 3000);
 
     return () => {
       window.clearInterval(interval);
-      supabase.removeChannel(channel);
     };
-  }, [
-    fetchMessages,
-    isNearBottom,
-    mergeMessages,
-    scrollToBottom,
-    supabase,
-    ticketId,
-  ]);
+  }, [fetchMessages]);
 
   return (
     <div ref={scrollRef} className="min-h-0 overflow-y-auto p-8">

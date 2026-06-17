@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export function TicketReplyForm({
   ticketId,
@@ -11,50 +11,7 @@ export function TicketReplyForm({
 }) {
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    function handleInsertAiReply(event: Event) {
-      const customEvent = event as CustomEvent<{ text: string }>;
-
-      if (!customEvent.detail?.text || isClosed) return;
-
-      setContent(customEvent.detail.text);
-      setError("");
-    }
-
-    window.addEventListener("pulsedesk:insert-ai-reply", handleInsertAiReply);
-
-    return () => {
-      window.removeEventListener(
-        "pulsedesk:insert-ai-reply",
-        handleInsertAiReply
-      );
-    };
-  }, [isClosed]);
-
-  async function handleSuggestReply() {
-    if (isClosed) return;
-
-    setAiLoading(true);
-    setError("");
-
-    const response = await fetch(`/api/tickets/${ticketId}/ai-reply`, {
-      method: "POST",
-    });
-
-    const data = await response.json();
-
-    setAiLoading(false);
-
-    if (!response.ok || !data.ok) {
-      setError(data.error || "Не удалось предложить ответ.");
-      return;
-    }
-
-    setContent(data.suggestion || "");
-  }
 
   async function handleSubmit() {
     if (isClosed) return;
@@ -87,6 +44,14 @@ export function TicketReplyForm({
     }
 
     setContent("");
+
+    window.dispatchEvent(
+      new CustomEvent("pulsedesk:messages-updated", {
+        detail: {
+          ticketId,
+        },
+      })
+    );
   }
 
   if (isClosed) {
@@ -111,12 +76,8 @@ export function TicketReplyForm({
           setContent(event.target.value);
           setError("");
         }}
-        placeholder={
-          aiLoading
-            ? "Подготавливаем ответ..."
-            : "Напишите ответ клиенту..."
-        }
-        disabled={aiLoading}
+        placeholder="Напишите ответ клиенту..."
+        disabled={loading}
         className="h-32 w-full resize-none bg-transparent text-sm outline-none disabled:cursor-wait disabled:opacity-60"
       />
 
@@ -126,18 +87,10 @@ export function TicketReplyForm({
         </div>
       ) : null}
 
-      <div className="mt-4 flex items-center justify-between">
-        <button
-          onClick={handleSuggestReply}
-          disabled={loading || aiLoading}
-          className="rounded-2xl bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {aiLoading ? "Готовим..." : "Предложить ответ"}
-        </button>
-
+      <div className="mt-4 flex items-center justify-end">
         <button
           onClick={handleSubmit}
-          disabled={loading || aiLoading}
+          disabled={loading}
           className="rounded-2xl bg-black px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading ? "Отправляем..." : "Отправить"}

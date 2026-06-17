@@ -31,9 +31,7 @@ export async function POST(request: Request) {
     }
 
     const widgetSettings = await prisma.widgetSetting.findUnique({
-      where: {
-        publicWidgetKey,
-      },
+      where: { publicWidgetKey },
     });
 
     if (!widgetSettings || !widgetSettings.isEnabled) {
@@ -43,13 +41,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const workspaceId = widgetSettings.workspaceId;
-
     if (ticketId) {
       const ticket = await prisma.ticket.findFirst({
         where: {
           id: ticketId,
-          workspaceId,
+          workspaceId: widgetSettings.workspaceId,
         },
       });
 
@@ -81,9 +77,7 @@ export async function POST(request: Request) {
       });
 
       await prisma.ticket.update({
-        where: {
-          id: ticket.id,
-        },
+        where: { id: ticket.id },
         data: {
           status: "waiting_operator",
         },
@@ -108,7 +102,7 @@ export async function POST(request: Request) {
 
     const ticket = await prisma.ticket.create({
       data: {
-        workspaceId,
+        workspaceId: widgetSettings.workspaceId,
         title,
         customerName: customerName || null,
         customerEmail: customerEmail || null,

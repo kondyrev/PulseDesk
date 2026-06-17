@@ -1,6 +1,79 @@
 import { NextResponse } from "next/server";
 
+import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+
+async function getCurrentWorkspaceId() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return null;
+  }
+
+  const { data: membership } = await supabase
+    .from("workspace_members")
+    .select("workspace_id")
+    .eq("profile_id", user.id)
+    .single();
+
+  return membership?.workspace_id || null;
+}
+
+export async function GET(
+  request: Request,
+  context: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  try {
+    const { id } = await context.params;
+    const workspaceId = await getCurrentWorkspaceId();
+
+    if (!workspaceId) {
+      return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
+    }
+
+    const ticket = await prisma.ticket.findFirst({
+      where: {
+        id,
+        workspaceId,
+      },
+      include: {
+        messages: {
+          orderBy: {
+            createdAt: "asc",
+          },
+        },
+      },
+    });
+
+    if (!ticket) {
+      return NextResponse.json(
+        { error: "Обращение не найдено." },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      ok: true,
+      messages: ticket.messages.map((message) => ({
+        id: message.id,
+        sender_type: message.senderType,
+        content: message.content,
+        page_url: message.pageUrl,
+        created_at: message.createdAt,
+      })),
+    });
+  } catch (error) {
+    console.error("Ticket messages GET error:", error);
+
+    return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
+  }
+}
 
 export async function POST(
   request: Request,
@@ -21,39 +94,20 @@ export async function POST(
       );
     }
 
-    const supabase = await createClient();
+    const workspaceId = await getCurrentWorkspaceId();
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    if (!workspaceId) {
       return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
     }
 
-    const { data: membership } = await supabase
-      .from("workspace_members")
-      .select("workspace_id")
-      .eq("profile_id", user.id)
-      .single();
+    const ticket = await prisma.ticket.findFirst({
+      where: {
+        id,
+        workspaceId,
+      },
+    });
 
-    if (!membership) {
-      return NextResponse.json(
-        { error: "Рабочее пространство не найдено" },
-        { status: 403 }
-      );
-    }
-
-    const workspaceId = membership.workspace_id;
-
-    const { data: ticket, error: ticketError } = await supabase
-      .from("tickets")
-      .select("id, status")
-      .eq("id", id)
-      .eq("workspace_id", workspaceId)
-      .single();
-
-    if (ticketError || !ticket) {
+    if (!ticket) {
       return NextResponse.json(
         { error: "Обращение не найдено." },
         { status: 404 }
@@ -67,37 +121,36 @@ export async function POST(
       );
     }
 
-    const { data: message, error: messageError } = await supabase
-      .from("ticket_messages")
-      .insert({
-        ticket_id: ticket.id,
-        workspace_id: workspaceId,
-        sender_type: "operator",
+    const message = await prisma.ticketMessage.create({
+      data: {
+        ticketId: ticket.id,
+        senderType: "operator",
         content,
-      })
-      .select("id, sender_type, content, page_url, created_at")
-      .single();
+      },
+    });
 
-    if (messageError) {
-      return NextResponse.json(
-        { error: messageError.message },
-        { status: 500 }
-      );
-    }
-
-    await supabase
-      .from("tickets")
-      .update({
+    await prisma.ticket.update({
+      where: {
+        id: ticket.id,
+      },
+      data: {
         status: "waiting_customer",
-      })
-      .eq("id", ticket.id)
-      .eq("workspace_id", workspaceId);
+      },
+    });
 
     return NextResponse.json({
       ok: true,
-      message,
+      message: {
+        id: message.id,
+        sender_type: message.senderType,
+        content: message.content,
+        page_url: message.pageUrl,
+        created_at: message.createdAt,
+      },
     });
-  } catch {
+  } catch (error) {
+    console.error("Ticket messages POST error:", error);
+
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
   }
 }

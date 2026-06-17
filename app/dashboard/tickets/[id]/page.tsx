@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 
-import { TicketAiPanel } from "@/components/dashboard/tickets/ticket-ai-panel";
 import { TicketMessagesPanel } from "@/components/dashboard/tickets/ticket-messages-panel";
 import { TicketReplyForm } from "@/components/dashboard/tickets/ticket-reply-form";
+import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -31,30 +31,37 @@ export default async function TicketDetailsPage({
     .eq("profile_id", user.id)
     .single();
 
-  if (!membership) {
+  if (!membership?.workspace_id) {
     return null;
   }
 
-  const workspaceId = membership.workspace_id;
-
-  const { data: ticket } = await supabase
-    .from("tickets")
-    .select("*")
-    .eq("id", id)
-    .eq("workspace_id", workspaceId)
-    .single();
+  const ticket = await prisma.ticket.findFirst({
+    where: {
+      id,
+      workspaceId: membership.workspace_id,
+    },
+    include: {
+      messages: {
+        orderBy: {
+          createdAt: "asc",
+        },
+      },
+    },
+  });
 
   if (!ticket) {
     notFound();
   }
 
-  const { data: messages } = await supabase
-    .from("ticket_messages")
-    .select("id, sender_type, content, page_url, created_at")
-    .eq("ticket_id", ticket.id)
-    .order("created_at", { ascending: true });
-
   const isClosed = ticket.status === "closed";
+
+  const initialMessages = ticket.messages.map((message) => ({
+    id: message.id,
+    sender_type: message.senderType,
+    content: message.content,
+    page_url: message.pageUrl,
+    created_at: message.createdAt.toISOString(),
+  }));
 
   return (
     <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_360px] overflow-hidden">
@@ -85,14 +92,14 @@ export default async function TicketDetailsPage({
           </h1>
 
           <p className="mt-3 text-sm text-zinc-500">
-            {ticket.customer_name || "Без имени"} ·{" "}
-            {ticket.customer_email || "email не указан"}
+            {ticket.customerName || "Без имени"} ·{" "}
+            {ticket.customerEmail || "email не указан"}
           </p>
         </div>
 
         <TicketMessagesPanel
           ticketId={ticket.id}
-          initialMessages={messages || []}
+          initialMessages={initialMessages}
         />
 
         <div className="border-t border-black/5 bg-white p-6">
@@ -101,7 +108,36 @@ export default async function TicketDetailsPage({
       </div>
 
       <aside className="h-full overflow-y-auto bg-white p-6">
-        <TicketAiPanel ticketId={ticket.id} isClosed={isClosed} />
+        <div className="sticky top-6 space-y-6">
+          <div className="rounded-[32px] border border-black/5 p-6">
+            <div className="mb-3 text-sm font-semibold text-zinc-400">
+              Состояние обращения
+            </div>
+
+            {isClosed ? (
+              <>
+                <div className="text-base font-semibold text-emerald-700">
+                  ✓ Обращение закрыто
+                </div>
+
+                <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+                  Новые сообщения и ответы недоступны.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="text-base font-semibold text-orange-700">
+                  Обращение в работе
+                </div>
+
+                <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+                  Сейчас проверяем основной контур обращений на PostgreSQL.
+                  ИИ-помощник подключим следующим этапом.
+                </p>
+              </>
+            )}
+          </div>
+        </div>
       </aside>
     </div>
   );

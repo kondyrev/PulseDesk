@@ -4,6 +4,7 @@ import { ru } from "date-fns/locale";
 import { ArrowUpRight, Inbox } from "lucide-react";
 
 import { TicketsAutoRefresh } from "@/components/dashboard/tickets/tickets-auto-refresh";
+import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -29,31 +30,31 @@ export default async function TicketsPage() {
 
   const workspaceId = membership?.workspace_id;
 
-  const { data: tickets } = workspaceId
-    ? await supabase
-        .from("tickets")
-        .select(
-          `
-          id,
-          title,
-          customer_email,
-          customer_name,
-          status,
-          priority,
-          source,
-          created_at,
-          last_message_at,
-          last_customer_message_at,
-          last_operator_message_at
-        `
-        )
-        .eq("workspace_id", workspaceId)
-        .order("last_message_at", {
-          ascending: false,
-          nullsFirst: false,
-        })
-        .order("created_at", { ascending: false })
-    : { data: [] };
+  const tickets = workspaceId
+    ? await prisma.ticket.findMany({
+        where: {
+          workspaceId,
+        },
+        include: {
+          messages: {
+            orderBy: {
+              createdAt: "desc",
+            },
+            take: 20,
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      })
+    : [];
+
+  const sortedTickets = [...tickets].sort((a, b) => {
+    const aLast = a.messages[0]?.createdAt || a.createdAt;
+    const bLast = b.messages[0]?.createdAt || b.createdAt;
+
+    return bLast.getTime() - aLast.getTime();
+  });
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -81,11 +82,11 @@ export default async function TicketsPage() {
             </div>
 
             <div className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">
-              {tickets?.length || 0} обращений
+              {sortedTickets.length} обращений
             </div>
           </div>
 
-          {!tickets?.length ? (
+          {!sortedTickets.length ? (
             <div className="flex flex-col items-center justify-center px-6 py-24 text-center">
               <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-500">
                 <Inbox className="h-6 w-6" />
@@ -102,21 +103,22 @@ export default async function TicketsPage() {
             </div>
           ) : (
             <div className="divide-y divide-black/5">
-              {tickets.map((ticket) => {
-                const lastCustomerAt = ticket.last_customer_message_at
-                  ? new Date(ticket.last_customer_message_at).getTime()
-                  : null;
+              {sortedTickets.map((ticket) => {
+                const lastCustomerMessage = ticket.messages.find(
+                  (message) => message.senderType === "customer"
+                );
 
-                const lastOperatorAt = ticket.last_operator_message_at
-                  ? new Date(ticket.last_operator_message_at).getTime()
-                  : null;
+                const lastOperatorMessage = ticket.messages.find(
+                  (message) => message.senderType === "operator"
+                );
 
                 const needsReply =
-                  lastCustomerAt !== null &&
-                  (lastOperatorAt === null || lastCustomerAt > lastOperatorAt);
+                  ticket.status !== "closed" &&
+                  !!lastCustomerMessage &&
+                  (!lastOperatorMessage ||
+                    lastCustomerMessage.createdAt > lastOperatorMessage.createdAt);
 
-                const activityAt =
-                  ticket.last_message_at || ticket.created_at;
+                const activityAt = ticket.messages[0]?.createdAt || ticket.createdAt;
 
                 return (
                   <Link
@@ -128,12 +130,16 @@ export default async function TicketsPage() {
                       <div className="mb-3 flex flex-wrap gap-2">
                         {needsReply ? (
                           <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600">
-                            Ждет ответа
+                            Ждёт ответа
                           </span>
                         ) : null}
 
                         <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">
-                          {ticket.status === "new" ? "Новое" : ticket.status}
+                          {ticket.status === "new"
+                            ? "Новое"
+                            : ticket.status === "closed"
+                              ? "Закрыто"
+                              : ticket.status}
                         </span>
 
                         <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600">
@@ -143,9 +149,7 @@ export default async function TicketsPage() {
                         </span>
 
                         <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600">
-                          {ticket.source === "widget"
-                            ? "Виджет"
-                            : ticket.source}
+                          {ticket.source === "widget" ? "Виджет" : ticket.source}
                         </span>
                       </div>
 
@@ -154,14 +158,12 @@ export default async function TicketsPage() {
                       </h3>
 
                       <p className="mt-2 text-sm text-zinc-500">
-                        {ticket.customer_name || "Без имени"} ·{" "}
-                        {ticket.customer_email || "email не указан"} ·{" "}
-                        {activityAt
-                          ? formatDistanceToNow(new Date(activityAt), {
-                              addSuffix: true,
-                              locale: ru,
-                            })
-                          : ""}
+                        {ticket.customerName || "Без имени"} ·{" "}
+                        {ticket.customerEmail || "email не указан"} ·{" "}
+                        {formatDistanceToNow(activityAt, {
+                          addSuffix: true,
+                          locale: ru,
+                        })}
                       </p>
                     </div>
 

@@ -32,9 +32,7 @@ export async function GET(
     }
 
     const widgetSettings = await prisma.widgetSetting.findUnique({
-      where: {
-        publicWidgetKey,
-      },
+      where: { publicWidgetKey },
     });
 
     if (!widgetSettings || !widgetSettings.isEnabled) {
