@@ -11,6 +11,7 @@
   }
 
   const apiBase = script.dataset.apiBase || "https://pulsedesk.ru";
+  const storageKey = `pulsedesk-ticket-${publicWidgetKey}`;
 
   let widgetSettings = {
     company_name: "",
@@ -19,6 +20,10 @@
     primary_color: "#000000",
     position: "bottom_right",
   };
+
+  let ticketId = localStorage.getItem(storageKey);
+  let isTyping = false;
+  let messagesInterval = null;
 
   const styles = document.createElement("style");
 
@@ -198,7 +203,7 @@
       min-width: 110px;
     }
 
-    .pd-closed {
+    .pd-state {
       padding: 20px;
       background: #f6f7f8;
       color: #333;
@@ -291,68 +296,186 @@
 
     launcher.style.backgroundColor = color;
 
-    const buttons = root.querySelectorAll(
-      ".pd-send, .pd-chat-send, .pd-new-ticket"
-    );
+    root
+      .querySelectorAll(".pd-send, .pd-chat-send, .pd-new-ticket")
+      .forEach((button) => {
+        button.style.backgroundColor = color;
+      });
 
-    buttons.forEach((button) => {
-      button.style.backgroundColor = color;
-    });
-
-    const customerMessages = root.querySelectorAll(".pd-message-customer");
-
-    customerMessages.forEach((message) => {
+    root.querySelectorAll(".pd-message-customer").forEach((message) => {
       message.style.backgroundColor = color;
     });
 
     if (position === "bottom_left") {
       launcher.style.left = "24px";
       launcher.style.right = "auto";
-
       panel.style.left = "24px";
       panel.style.right = "auto";
     } else {
       launcher.style.right = "24px";
       launcher.style.left = "auto";
-
       panel.style.right = "24px";
       panel.style.left = "auto";
     }
   }
 
-  async function loadWidgetSettings() {
-    try {
-      const response = await fetch(
-        `${apiBase}/api/widget/settings?key=${publicWidgetKey}`
-      );
+  function startMessagesPolling() {
+    if (messagesInterval) {
+      window.clearInterval(messagesInterval);
+    }
 
-      const data = await response.json();
+    messagesInterval = window.setInterval(loadMessages, 5000);
+  }
 
-      if (!data.ok || !data.settings) {
-        applyWidgetSettings();
-        return;
-      }
+  function renderState(title, text, showNewTicketButton) {
+    panel.classList.remove("pd-panel-form");
+    panel.classList.add("pd-panel-chat");
 
-      widgetSettings = {
-        ...widgetSettings,
-        ...data.settings,
-      };
+    body.innerHTML = `
+      <div class="pd-chat">
+        <div class="pd-state">
+          <strong>${title}</strong>
+          <div style="margin-top: 6px;">${text}</div>
+          ${
+            showNewTicketButton
+              ? `<button class="pd-new-ticket">Создать новое обращение</button>`
+              : ""
+          }
+        </div>
+      </div>
+    `;
 
-      applyWidgetSettings();
-    } catch (error) {
-      console.error("PulseDesk settings error:", error);
-      applyWidgetSettings();
+    applyWidgetSettings();
+
+    const newTicketButton = body.querySelector(".pd-new-ticket");
+
+    if (newTicketButton) {
+      newTicketButton.addEventListener("click", () => {
+        localStorage.removeItem(storageKey);
+        ticketId = null;
+        renderForm();
+      });
     }
   }
 
-  launcher.addEventListener("click", () => {
-    panel.style.display = panel.style.display === "none" ? "block" : "none";
-  });
+  function renderChatShell() {
+    panel.classList.remove("pd-panel-form");
+    panel.classList.add("pd-panel-chat");
 
-  let ticketId = localStorage.getItem(`pulsedesk-ticket-${publicWidgetKey}`);
-  let isTyping = false;
+    const existingChat = body.querySelector(".pd-chat");
+
+    if (existingChat) return;
+
+    body.innerHTML = `
+      <div class="pd-chat">
+        <div class="pd-messages"></div>
+
+        <div class="pd-chat-form">
+          <input
+            class="pd-chat-input"
+            placeholder="Введите сообщение..."
+          />
+
+          <button class="pd-chat-send">
+            Отправить
+          </button>
+        </div>
+      </div>
+    `;
+
+    applyWidgetSettings();
+
+    const input = body.querySelector(".pd-chat-input");
+    const sendButton = body.querySelector(".pd-chat-send");
+
+    input.addEventListener("input", () => {
+      isTyping = input.value.trim().length > 0;
+    });
+
+    input.addEventListener("blur", () => {
+      isTyping = false;
+    });
+
+    sendButton.addEventListener("click", async () => {
+      const text = input.value.trim();
+
+      if (!text || !ticketId) return;
+
+      isTyping = false;
+      sendButton.disabled = true;
+      sendButton.innerText = "Отправляем...";
+
+      input.value = "";
+
+      renderMessages([
+        ...getCurrentMessagesFromDom(),
+        {
+          id: `local-${Date.now()}`,
+          sender_type: "customer",
+          content: text,
+        },
+      ]);
+
+      try {
+        const response = await fetch(`${apiBase}/api/widget/tickets`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            publicWidgetKey,
+            ticketId,
+            message: text,
+            pageUrl: window.location.href,
+          }),
+        });
+
+        const result = await response.json();
+
+        if (result.closed) {
+          renderClosedState([]);
+          return;
+        }
+
+        if (!response.ok || !result.ok) {
+          renderState(
+            "Не удалось отправить сообщение.",
+            "Пожалуйста, попробуйте ещё раз.",
+            false
+          );
+          return;
+        }
+
+        await loadMessages();
+      } catch (error) {
+        console.error("PulseDesk send message error:", error);
+        renderState(
+          "Не удалось отправить сообщение.",
+          "Проверьте подключение и попробуйте ещё раз.",
+          false
+        );
+      } finally {
+        sendButton.disabled = false;
+        sendButton.innerText = "Отправить";
+      }
+    });
+  }
+
+  function getCurrentMessagesFromDom() {
+    const nodes = body.querySelectorAll(".pd-message");
+
+    return Array.from(nodes).map((node, index) => ({
+      id: `dom-${index}`,
+      sender_type: node.classList.contains("pd-message-customer")
+        ? "customer"
+        : "operator",
+      content: node.innerText,
+    }));
+  }
 
   function renderMessages(messages) {
+    renderChatShell();
+
     const messagesContainer = body.querySelector(".pd-messages");
 
     if (!messagesContainer) return;
@@ -381,6 +504,7 @@
     });
 
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    applyWidgetSettings();
   }
 
   function renderClosedState(messages) {
@@ -391,7 +515,7 @@
       <div class="pd-chat">
         <div class="pd-messages"></div>
 
-        <div class="pd-closed">
+        <div class="pd-state">
           <strong>Обращение закрыто.</strong>
           <div style="margin-top: 6px;">
             Если вопрос ещё актуален, создайте новое обращение.
@@ -404,133 +528,97 @@
       </div>
     `;
 
-    renderMessages(messages || []);
+    const messagesContainer = body.querySelector(".pd-messages");
+
+    messagesContainer.innerHTML = "";
+
+    (messages || []).forEach((message) => {
+      const div = document.createElement("div");
+
+      div.className = `
+        pd-message
+        ${
+          message.sender_type === "customer"
+            ? "pd-message-customer"
+            : "pd-message-operator"
+        }
+      `;
+
+      div.innerText = message.content;
+
+      if (message.sender_type === "customer") {
+        div.style.backgroundColor = normalizeColor(widgetSettings.primary_color);
+      }
+
+      messagesContainer.appendChild(div);
+    });
+
     applyWidgetSettings();
 
     const newTicketButton = body.querySelector(".pd-new-ticket");
 
     newTicketButton.addEventListener("click", () => {
-      localStorage.removeItem(`pulsedesk-ticket-${publicWidgetKey}`);
+      localStorage.removeItem(storageKey);
       ticketId = null;
       renderForm();
     });
   }
 
+  async function loadWidgetSettings() {
+    try {
+      const response = await fetch(
+        `${apiBase}/api/widget/settings?key=${publicWidgetKey}`
+      );
+
+      const data = await response.json();
+
+      if (data.ok && data.settings) {
+        widgetSettings = {
+          ...widgetSettings,
+          ...data.settings,
+        };
+      }
+    } catch (error) {
+      console.error("PulseDesk settings error:", error);
+    }
+
+    applyWidgetSettings();
+  }
+
   async function loadMessages() {
     if (!ticketId || isTyping) return;
 
-    const response = await fetch(
-      `${apiBase}/api/widget/tickets/${ticketId}/messages?key=${publicWidgetKey}`
-    );
+    try {
+      renderChatShell();
 
-    const data = await response.json();
+      const response = await fetch(
+        `${apiBase}/api/widget/tickets/${ticketId}/messages?key=${publicWidgetKey}`
+      );
 
-    if (!data.ok) {
-      localStorage.removeItem(`pulsedesk-ticket-${publicWidgetKey}`);
+      const data = await response.json();
 
-      ticketId = null;
+      if (!response.ok || !data.ok) {
+        localStorage.removeItem(storageKey);
+        ticketId = null;
+        renderForm();
+        return;
+      }
 
-      renderForm();
+      if (data.closed) {
+        renderClosedState(data.messages || []);
+        return;
+      }
 
-      return;
+      renderMessages(data.messages || []);
+    } catch (error) {
+      console.error("PulseDesk messages error:", error);
+
+      renderState(
+        "Не удалось загрузить диалог.",
+        "Попробуйте обновить страницу или создать новое обращение.",
+        true
+      );
     }
-
-    if (data.closed) {
-      renderClosedState(data.messages || []);
-      return;
-    }
-
-    panel.classList.remove("pd-panel-form");
-    panel.classList.add("pd-panel-chat");
-
-    const existingChat = body.querySelector(".pd-chat");
-
-    if (!existingChat) {
-      body.innerHTML = `
-        <div class="pd-chat">
-          <div class="pd-messages"></div>
-
-          <div class="pd-chat-form">
-            <input
-              class="pd-chat-input"
-              placeholder="Введите сообщение..."
-            />
-
-            <button class="pd-chat-send">
-              Отправить
-            </button>
-          </div>
-        </div>
-      `;
-
-      applyWidgetSettings();
-
-      const input = body.querySelector(".pd-chat-input");
-      const sendButton = body.querySelector(".pd-chat-send");
-
-      input.addEventListener("input", () => {
-        isTyping = input.value.trim().length > 0;
-      });
-
-      input.addEventListener("blur", () => {
-        isTyping = false;
-      });
-
-      sendButton.addEventListener("click", async () => {
-        const text = input.value.trim();
-
-        if (!text) return;
-
-        isTyping = false;
-
-        sendButton.disabled = true;
-        sendButton.innerText = "Отправляем...";
-
-        const optimisticMessages = [
-          ...data.messages,
-          {
-            sender_type: "customer",
-            content: text,
-          },
-        ];
-
-        renderMessages(optimisticMessages);
-
-        input.value = "";
-
-        const request = await fetch(`${apiBase}/api/widget/tickets`, {
-          method: "POST",
-
-          headers: {
-            "Content-Type": "application/json",
-          },
-
-          body: JSON.stringify({
-            publicWidgetKey,
-            ticketId,
-            message: text,
-            pageUrl: window.location.href,
-          }),
-        });
-
-        const result = await request.json();
-
-        sendButton.disabled = false;
-        sendButton.innerText = "Отправить";
-
-        if (result.closed) {
-          renderClosedState(data.messages || []);
-          return;
-        }
-
-        if (!result.ok) return;
-
-        loadMessages();
-      });
-    }
-
-    renderMessages(data.messages);
-    applyWidgetSettings();
   }
 
   function renderForm() {
@@ -568,54 +656,80 @@
     const sendButton = body.querySelector(".pd-send");
 
     sendButton.addEventListener("click", async () => {
-      const customerName = body.querySelector("#pd-name").value;
-      const customerEmail = body.querySelector("#pd-email").value;
-      const message = body.querySelector("#pd-message").value;
+      const customerName = body.querySelector("#pd-name").value.trim();
+      const customerEmail = body.querySelector("#pd-email").value.trim();
+      const message = body.querySelector("#pd-message").value.trim();
 
-      if (!message.trim()) return;
+      if (!message) return;
 
       sendButton.disabled = true;
       sendButton.innerText = "Отправляем...";
 
-      const response = await fetch(`${apiBase}/api/widget/tickets`, {
-        method: "POST",
+      try {
+        const response = await fetch(`${apiBase}/api/widget/tickets`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            publicWidgetKey,
+            customerName,
+            customerEmail,
+            message,
+            pageUrl: window.location.href,
+          }),
+        });
 
-        headers: {
-          "Content-Type": "application/json",
-        },
+        const data = await response.json();
 
-        body: JSON.stringify({
-          publicWidgetKey,
-          customerName,
-          customerEmail,
-          message,
-          pageUrl: window.location.href,
-        }),
-      });
+        if (!response.ok || !data.ok || !data.ticketId) {
+          renderState(
+            "Не удалось создать обращение.",
+            "Пожалуйста, попробуйте ещё раз.",
+            false
+          );
+          return;
+        }
 
-      const data = await response.json();
+        ticketId = data.ticketId;
+        localStorage.setItem(storageKey, ticketId);
 
-      sendButton.disabled = false;
-      sendButton.innerText = "Отправить";
+        renderChatShell();
+        renderMessages([
+          {
+            id: `local-${Date.now()}`,
+            sender_type: "customer",
+            content: message,
+          },
+        ]);
 
-      if (!data.ok) return;
+        await loadMessages();
+        startMessagesPolling();
+      } catch (error) {
+        console.error("PulseDesk create ticket error:", error);
 
-      ticketId = data.ticketId;
-
-      localStorage.setItem(`pulsedesk-ticket-${publicWidgetKey}`, ticketId);
-
-      loadMessages();
-
-      setInterval(loadMessages, 5000);
+        renderState(
+          "Не удалось создать обращение.",
+          "Проверьте подключение и попробуйте ещё раз.",
+          false
+        );
+      } finally {
+        sendButton.disabled = false;
+        sendButton.innerText = "Отправить";
+      }
     });
   }
+
+  launcher.addEventListener("click", () => {
+    panel.style.display = panel.style.display === "none" ? "block" : "none";
+  });
 
   loadWidgetSettings();
 
   if (ticketId) {
+    renderChatShell();
     loadMessages();
-
-    setInterval(loadMessages, 5000);
+    startMessagesPolling();
   } else {
     renderForm();
   }
