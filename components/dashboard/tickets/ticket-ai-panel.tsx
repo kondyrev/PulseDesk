@@ -27,6 +27,8 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
   const [data, setData] = useState<AiSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [closed, setClosed] = useState(false);
   const [error, setError] = useState("");
   const [showDetails, setShowDetails] = useState(false);
 
@@ -104,6 +106,42 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
     );
   }
 
+  async function handleCloseTicket() {
+    setClosing(true);
+    setError("");
+
+    const response = await fetch(`/api/tickets/${ticketId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        status: "closed",
+      }),
+    });
+
+    const result = await response.json();
+
+    setClosing(false);
+
+    if (!response.ok || !result.ok) {
+      setError(result.error || "Не удалось закрыть обращение.");
+      return;
+    }
+
+    setClosed(true);
+
+    setData((current) =>
+      current
+        ? {
+            ...current,
+            statusSuggestion: "resolved",
+            statusReason: "Обращение закрыто оператором.",
+          }
+        : current
+    );
+  }
+
   if (loading) {
     return (
       <div className="sticky top-6 rounded-[32px] border border-black/5 p-6 text-sm text-zinc-500">
@@ -160,7 +198,19 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
       </div>
 
       <div className="rounded-[32px] border border-black/5 p-6">
-        {status === "resolved" && (
+        {closed ? (
+          <>
+            <div className="text-base font-semibold text-green-700">
+              ✓ Обращение закрыто
+            </div>
+
+            <p className="mt-2 text-sm text-zinc-600">
+              Статус обращения обновлён.
+            </p>
+          </>
+        ) : null}
+
+        {!closed && status === "resolved" ? (
           <>
             <div className="text-base font-semibold text-green-700">
               ✓ Можно закрыть обращение
@@ -170,13 +220,17 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
               Клиент подтвердил решение вопроса.
             </p>
 
-            <button className="mt-4 rounded-2xl bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90">
-              Закрыть обращение
+            <button
+              onClick={handleCloseTicket}
+              disabled={closing}
+              className="mt-4 rounded-2xl bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {closing ? "Закрываем..." : "Закрыть обращение"}
             </button>
           </>
-        )}
+        ) : null}
 
-        {status === "waiting_customer" && (
+        {!closed && status === "waiting_customer" ? (
           <>
             <div className="text-base font-semibold text-blue-700">
               ⏳ Ждём клиента
@@ -186,9 +240,9 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
               Последнее действие выполнено оператором.
             </p>
           </>
-        )}
+        ) : null}
 
-        {status === "waiting_operator" && (
+        {!closed && status === "waiting_operator" ? (
           <>
             <div className="text-base font-semibold text-orange-700">
               ⚠ Нужен ответ оператора
@@ -198,7 +252,7 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
               Клиент ожидает реакцию службы поддержки.
             </p>
           </>
-        )}
+        ) : null}
       </div>
 
       <div className="rounded-[32px] border border-black/5 p-6">
@@ -211,7 +265,7 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
             : "Показать детали обращения"}
         </button>
 
-        {showDetails && (
+        {showDetails ? (
           <div className="mt-6 space-y-6">
             <div>
               <div className="mb-2 text-sm font-semibold text-zinc-400">
@@ -243,7 +297,7 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
               </p>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

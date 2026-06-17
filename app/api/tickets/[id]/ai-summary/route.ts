@@ -52,40 +52,65 @@ function customerMessageLooksResolved(content: string) {
   const text = content.toLowerCase();
 
   return [
-    "спасибо",
     "всё работает",
     "все работает",
     "заработало",
+    "помогло",
     "решено",
     "проблема решена",
     "вопрос закрыт",
     "можно закрывать",
+    "спасибо, всё",
+    "спасибо, все",
+    "спасибо, помогло",
+    "благодарю, помогло",
   ].some((phrase) => text.includes(phrase));
 }
 
-function normalizeStatusByLastMessage(
+function getLastCustomerMessage(messages: TicketMessage[]) {
+  return [...messages]
+    .reverse()
+    .find((message) => message.sender_type === "customer");
+}
+
+function normalizeStatusByConversation(
   summary: AiSummary,
-  lastMessage?: TicketMessage
+  messages: TicketMessage[],
+  currentStatus?: string | null
 ): AiSummary {
+  const lastMessage = messages[messages.length - 1];
+  const lastCustomerMessage = getLastCustomerMessage(messages);
+
+  if (currentStatus === "closed") {
+    return {
+      ...summary,
+      statusSuggestion: "resolved",
+      statusReason: "Обращение уже закрыто.",
+    };
+  }
+
+  if (
+    lastCustomerMessage &&
+    customerMessageLooksResolved(lastCustomerMessage.content)
+  ) {
+    return {
+      ...summary,
+      statusSuggestion: "resolved",
+      statusReason:
+        "Клиент подтвердил, что вопрос решён или проблема устранена.",
+    };
+  }
+
   if (!lastMessage) {
     return summary;
   }
 
   if (lastMessage.sender_type === "customer") {
-    if (customerMessageLooksResolved(lastMessage.content)) {
-      return {
-        ...summary,
-        statusSuggestion: "resolved",
-        statusReason:
-          "Клиент последним сообщением подтвердил, что вопрос решён или проблема устранена.",
-      };
-    }
-
     return {
       ...summary,
       statusSuggestion: "waiting_operator",
       statusReason:
-        "Последнее сообщение написал клиент, значит обращение требует внимания оператора.",
+        "Последнее сообщение написал клиент, значит обращение требует реакции оператора.",
     };
   }
 
@@ -282,9 +307,10 @@ ${conversation || "Сообщений пока нет."}
       );
     }
 
-    const normalizedSummary = normalizeStatusByLastMessage(
+    const normalizedSummary = normalizeStatusByConversation(
       summary,
-      lastMessage
+      safeMessages,
+      ticket.status
     );
 
     return NextResponse.json({
