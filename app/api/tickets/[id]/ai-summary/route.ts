@@ -2,13 +2,22 @@ import { NextResponse } from "next/server";
 
 import { createClient } from "@/lib/supabase/server";
 
+type AiStatusSuggestion = "waiting_operator" | "waiting_customer" | "resolved";
+
 type AiSummary = {
   summary: string;
   sentiment: string;
   recommendedAction: string;
   suggestedReply: string;
-  statusSuggestion: "waiting_operator" | "waiting_customer" | "resolved";
+  statusSuggestion: AiStatusSuggestion;
   statusReason: string;
+};
+
+type TicketMessage = {
+  sender_type: string;
+  content: string;
+  page_url: string | null;
+  created_at: string;
 };
 
 type YandexCompletionResponse = {
@@ -37,6 +46,60 @@ function extractJson(text: string): AiSummary | null {
       return null;
     }
   }
+}
+
+function customerMessageLooksResolved(content: string) {
+  const text = content.toLowerCase();
+
+  return [
+    "спасибо",
+    "всё работает",
+    "все работает",
+    "заработало",
+    "решено",
+    "проблема решена",
+    "вопрос закрыт",
+    "можно закрывать",
+  ].some((phrase) => text.includes(phrase));
+}
+
+function normalizeStatusByLastMessage(
+  summary: AiSummary,
+  lastMessage?: TicketMessage
+): AiSummary {
+  if (!lastMessage) {
+    return summary;
+  }
+
+  if (lastMessage.sender_type === "customer") {
+    if (customerMessageLooksResolved(lastMessage.content)) {
+      return {
+        ...summary,
+        statusSuggestion: "resolved",
+        statusReason:
+          "Клиент последним сообщением подтвердил, что вопрос решён или проблема устранена.",
+      };
+    }
+
+    return {
+      ...summary,
+      statusSuggestion: "waiting_operator",
+      statusReason:
+        "Последнее сообщение написал клиент, значит обращение требует внимания оператора.",
+    };
+  }
+
+  if (lastMessage.sender_type === "operator") {
+    return {
+      ...summary,
+      statusSuggestion: "waiting_customer",
+      statusReason:
+        summary.statusReason ||
+        "Последнее сообщение написал оператор, поэтому сейчас ожидается реакция клиента.",
+    };
+  }
+
+  return summary;
 }
 
 export async function POST(
@@ -112,8 +175,9 @@ export async function POST(
       );
     }
 
-    const safeMessages = messages || [];
+    const safeMessages = (messages || []) as TicketMessage[];
     const lastMessage = safeMessages[safeMessages.length - 1];
+
     const lastAuthor =
       lastMessage?.sender_type === "operator"
         ? "Оператор"
@@ -155,18 +219,6 @@ ${conversation || "Сообщений пока нет."}
   "statusReason": "почему выбран именно этот статус"
 }
 
-Жёсткие правила статуса:
-- Если последнее сообщение написал клиент, statusSuggestion должен быть "waiting_operator".
-- Исключение: если последнее сообщение клиента явно подтверждает, что проблема решена, всё заработало, вопрос закрыт или клиент благодарит за решение — тогда statusSuggestion должен быть "resolved".
-- Если последнее сообщение написал оператор и он запросил уточнение, попросил подождать или сообщил, что ждёт данные от клиента, statusSuggestion должен быть "waiting_customer".
-- Если последнее сообщение написал оператор, но оператор уже сообщил о выполненном действии и клиент ещё не подтвердил результат, statusSuggestion должен быть "waiting_customer".
-- Не ставь "waiting_customer", если клиент после этого уже написал новое сообщение с вопросом, претензией, уточнением или требованием.
-
-Статусы:
-- waiting_operator: клиент задал вопрос, прислал новые данные, возмутился, потребовал ответа или оператору нужно выполнить действие.
-- waiting_customer: оператор уже запросил уточнение, попросил подождать или ожидает подтверждение от клиента.
-- resolved: клиент подтвердил, что проблема решена, поблагодарил за решение или сообщил, что всё работает.
-
 Важно:
 - Пиши на русском языке.
 - Не выдумывай факты.
@@ -196,7 +248,7 @@ ${conversation || "Сообщений пока нет."}
           messages: [
             {
               role: "system",
-              text: "Ты ИИ-ассистент оператора поддержки. Анализируй обращения клиентов и возвращай только валидный JSON. Статус обращения определяй по последнему сообщению в переписке. Используй нейтральный профессиональный стиль без гендерных формулировок от лица оператора.",
+              text: "Ты ИИ-ассистент оператора поддержки. Анализируй обращения клиентов и возвращай только валидный JSON. Используй нейтральный профессиональный стиль без гендерных формулировок от лица оператора.",
             },
             {
               role: "user",
@@ -230,9 +282,14 @@ ${conversation || "Сообщений пока нет."}
       );
     }
 
+    const normalizedSummary = normalizeStatusByLastMessage(
+      summary,
+      lastMessage
+    );
+
     return NextResponse.json({
       ok: true,
-      summary,
+      summary: normalizedSummary,
     });
   } catch {
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
