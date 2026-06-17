@@ -170,12 +170,6 @@ export default async function TicketsPage() {
                           {view.label}
                         </span>
 
-                        {ticket.status === "waiting_operator" ? (
-                          <span className="rounded-full bg-black px-3 py-1 text-xs font-semibold text-white">
-                            Нужно ответить
-                          </span>
-                        ) : null}
-
                         <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600 ring-1 ring-blue-100">
                           {ticket.priority === "normal"
                             ? "Обычный приоритет"
