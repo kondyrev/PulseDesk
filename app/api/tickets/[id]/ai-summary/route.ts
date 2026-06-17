@@ -36,9 +36,7 @@ function extractJson(text: string): AiSummary | null {
   } catch {
     const match = text.match(/\{[\s\S]*\}/);
 
-    if (!match) {
-      return null;
-    }
+    if (!match) return null;
 
     try {
       return JSON.parse(match[0]) as AiSummary;
@@ -62,8 +60,15 @@ function customerMessageLooksResolved(content: string) {
     "можно закрывать",
     "спасибо, всё",
     "спасибо, все",
+    "всё спасибо",
+    "все спасибо",
     "спасибо, помогло",
     "благодарю, помогло",
+    "деньги пришли",
+    "средства пришли",
+    "оплата прошла",
+    "возврат пришел",
+    "возврат пришёл",
   ].some((phrase) => text.includes(phrase));
 }
 
@@ -98,6 +103,7 @@ function normalizeStatusByConversation(
       statusSuggestion: "resolved",
       statusReason:
         "Клиент подтвердил, что вопрос решён или проблема устранена.",
+      recommendedAction: "закрыть обращение как решённое",
     };
   }
 
