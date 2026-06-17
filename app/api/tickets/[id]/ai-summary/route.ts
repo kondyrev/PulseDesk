@@ -7,6 +7,8 @@ type AiSummary = {
   sentiment: string;
   recommendedAction: string;
   suggestedReply: string;
+  statusSuggestion: "waiting_operator" | "waiting_customer" | "resolved";
+  statusReason: string;
 };
 
 type YandexCompletionResponse = {
@@ -137,8 +139,15 @@ ${conversation || "Сообщений пока нет."}
   "summary": "краткая сводка обращения в 1-2 предложениях",
   "sentiment": "настроение клиента одним коротким статусом",
   "recommendedAction": "что оператору лучше сделать дальше",
-  "suggestedReply": "короткий рекомендуемый ответ клиенту"
+  "suggestedReply": "короткий рекомендуемый ответ клиенту",
+  "statusSuggestion": "waiting_operator | waiting_customer | resolved",
+  "statusReason": "почему выбран именно этот статус"
 }
+
+Статусы:
+- waiting_operator: клиент задал вопрос, прислал новые данные или оператору нужно выполнить действие.
+- waiting_customer: оператор уже запросил уточнение или ожидает ответ клиента.
+- resolved: клиент подтвердил, что проблема решена, поблагодарил и сообщил, что всё работает.
 
 Важно:
 - Пиши на русском языке.
@@ -164,7 +173,7 @@ ${conversation || "Сообщений пока нет."}
           completionOptions: {
             stream: false,
             temperature: 0.2,
-            maxTokens: 900,
+            maxTokens: 1000,
           },
           messages: [
             {

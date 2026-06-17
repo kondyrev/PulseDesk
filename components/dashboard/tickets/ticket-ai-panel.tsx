@@ -2,12 +2,36 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+type AiStatusSuggestion = "waiting_operator" | "waiting_customer" | "resolved";
+
 type AiSummary = {
   summary: string;
   sentiment: string;
   recommendedAction: string;
   suggestedReply: string;
+  statusSuggestion: AiStatusSuggestion;
+  statusReason: string;
 };
+
+const statusLabels: Record<AiStatusSuggestion, string> = {
+  waiting_operator: "Требуется оператор",
+  waiting_customer: "Ожидаем клиента",
+  resolved: "Проблема решена",
+};
+
+const statusClasses: Record<AiStatusSuggestion, string> = {
+  waiting_operator: "bg-orange-100 text-orange-700",
+  waiting_customer: "bg-blue-100 text-blue-700",
+  resolved: "bg-green-100 text-green-700",
+};
+
+function isKnownStatus(value: string): value is AiStatusSuggestion {
+  return (
+    value === "waiting_operator" ||
+    value === "waiting_customer" ||
+    value === "resolved"
+  );
+}
 
 export function TicketAiPanel({ ticketId }: { ticketId: string }) {
   const refreshTimeoutRef = useRef<number | null>(null);
@@ -107,6 +131,10 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
     );
   }
 
+  const status = isKnownStatus(data.statusSuggestion)
+    ? data.statusSuggestion
+    : "waiting_operator";
+
   return (
     <div className="sticky top-6 space-y-6">
       {refreshing ? (
@@ -131,6 +159,22 @@ export function TicketAiPanel({ ticketId }: { ticketId: string }) {
         <div className="inline-flex rounded-full bg-zinc-100 px-3 py-1 text-sm font-semibold text-zinc-700">
           {data.sentiment}
         </div>
+      </div>
+
+      <div className="rounded-[32px] border border-black/5 p-6">
+        <div className="mb-4 text-sm font-semibold text-zinc-400">
+          Статус по мнению ИИ
+        </div>
+
+        <div
+          className={`mb-4 inline-flex rounded-full px-3 py-1 text-sm font-semibold ${statusClasses[status]}`}
+        >
+          {statusLabels[status]}
+        </div>
+
+        <p className="text-sm leading-relaxed text-zinc-600">
+          {data.statusReason}
+        </p>
       </div>
 
       <div className="rounded-[32px] border border-black/5 p-6">
