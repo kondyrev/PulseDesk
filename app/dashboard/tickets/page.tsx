@@ -112,14 +112,6 @@ export default async function TicketsPage() {
     <div className="flex min-h-screen flex-col bg-[#f6f7f8]">
       <TicketsAutoRefresh />
 
-      <div className="border-b border-black/5 bg-white px-8 py-5">
-        <h1 className="text-2xl font-semibold tracking-tight">Обращения</h1>
-
-        <p className="mt-1 text-sm text-black/50">
-          Спокойная лента диалогов из виджета поддержки.
-        </p>
-      </div>
-
       <div className="flex-1 p-6">
         <div className="rounded-[32px] border border-black/5 bg-white shadow-[0_10px_40px_rgba(0,0,0,0.04)]">
           <div className="flex items-center justify-between border-b border-black/5 p-6">
