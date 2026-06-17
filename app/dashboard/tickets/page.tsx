@@ -10,6 +10,58 @@ import { createClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+type TicketStatus =
+  | "new"
+  | "open"
+  | "waiting_operator"
+  | "waiting_customer"
+  | "resolved"
+  | "closed";
+
+const statusView: Record<
+  TicketStatus,
+  {
+    label: string;
+    dot: string;
+    badge: string;
+  }
+> = {
+  new: {
+    label: "Новое",
+    dot: "bg-blue-500",
+    badge: "bg-blue-50 text-blue-700 ring-blue-100",
+  },
+  open: {
+    label: "В работе",
+    dot: "bg-violet-500",
+    badge: "bg-violet-50 text-violet-700 ring-violet-100",
+  },
+  waiting_operator: {
+    label: "Ждёт оператора",
+    dot: "bg-red-500",
+    badge: "bg-red-50 text-red-700 ring-red-100",
+  },
+  waiting_customer: {
+    label: "Ждёт клиента",
+    dot: "bg-amber-500",
+    badge: "bg-amber-50 text-amber-700 ring-amber-100",
+  },
+  resolved: {
+    label: "Решено",
+    dot: "bg-emerald-500",
+    badge: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+  },
+  closed: {
+    label: "Закрыто",
+    dot: "bg-zinc-400",
+    badge: "bg-zinc-100 text-zinc-600 ring-zinc-200",
+  },
+};
+
+function getStatusView(status: string) {
+  return statusView[status as TicketStatus] || statusView.open;
+}
+
 export default async function TicketsPage() {
   const supabase = await createClient();
 
@@ -57,27 +109,27 @@ export default async function TicketsPage() {
   });
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-[#f6f7f8]">
       <TicketsAutoRefresh />
 
       <div className="border-b border-black/5 bg-white px-8 py-5">
         <h1 className="text-2xl font-semibold tracking-tight">Обращения</h1>
 
         <p className="mt-1 text-sm text-black/50">
-          Сообщения клиентов, созданные через виджет поддержки.
+          Спокойная лента диалогов из виджета поддержки.
         </p>
       </div>
 
       <div className="flex-1 p-6">
-        <div className="rounded-[28px] border border-black/5 bg-white shadow-[0_10px_40px_rgba(0,0,0,0.04)]">
+        <div className="rounded-[32px] border border-black/5 bg-white shadow-[0_10px_40px_rgba(0,0,0,0.04)]">
           <div className="flex items-center justify-between border-b border-black/5 p-6">
             <div>
               <h2 className="text-lg font-semibold tracking-tight">
-                Входящие обращения
+                Оперативная лента
               </h2>
 
               <p className="mt-1 text-sm text-zinc-500">
-                Новые сообщения с сайта клиента.
+                Самые свежие обращения всегда сверху.
               </p>
             </div>
 
@@ -116,44 +168,54 @@ export default async function TicketsPage() {
                   ticket.status !== "closed" &&
                   !!lastCustomerMessage &&
                   (!lastOperatorMessage ||
-                    lastCustomerMessage.createdAt > lastOperatorMessage.createdAt);
+                    lastCustomerMessage.createdAt >
+                      lastOperatorMessage.createdAt);
 
-                const activityAt = ticket.messages[0]?.createdAt || ticket.createdAt;
+                const activityAt =
+                  ticket.messages[0]?.createdAt || ticket.createdAt;
+
+                const status =
+                  ticket.status === "new" && needsReply
+                    ? "waiting_operator"
+                    : ticket.status;
+
+                const view = getStatusView(status);
 
                 return (
                   <Link
                     key={ticket.id}
                     href={`/dashboard/tickets/${ticket.id}`}
-                    className="flex flex-col gap-5 p-6 transition hover:bg-zinc-50 lg:flex-row lg:items-center lg:justify-between"
+                    className="group flex flex-col gap-5 p-6 transition hover:bg-zinc-50 lg:flex-row lg:items-center lg:justify-between"
                   >
-                    <div>
-                      <div className="mb-3 flex flex-wrap gap-2">
+                    <div className="min-w-0">
+                      <div className="mb-4 flex flex-wrap items-center gap-2">
+                        <span
+                          className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ring-1 ${view.badge}`}
+                        >
+                          <span
+                            className={`h-2 w-2 rounded-full ${view.dot}`}
+                          />
+                          {view.label}
+                        </span>
+
                         {needsReply ? (
-                          <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600">
-                            Ждёт ответа
+                          <span className="rounded-full bg-black px-3 py-1 text-xs font-semibold text-white">
+                            Нужно ответить
                           </span>
                         ) : null}
 
-                        <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">
-                          {ticket.status === "new"
-                            ? "Новое"
-                            : ticket.status === "closed"
-                              ? "Закрыто"
-                              : ticket.status}
-                        </span>
-
-                        <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600">
+                        <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600 ring-1 ring-blue-100">
                           {ticket.priority === "normal"
                             ? "Обычный приоритет"
                             : ticket.priority}
                         </span>
 
-                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600">
+                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600 ring-1 ring-emerald-100">
                           {ticket.source === "widget" ? "Виджет" : ticket.source}
                         </span>
                       </div>
 
-                      <h3 className="text-lg font-bold tracking-tight">
+                      <h3 className="truncate text-lg font-bold tracking-tight text-zinc-950">
                         {ticket.title}
                       </h3>
 
@@ -167,7 +229,7 @@ export default async function TicketsPage() {
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-2 text-sm font-semibold text-zinc-500">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-zinc-400 transition group-hover:text-zinc-900">
                       Открыть
                       <ArrowUpRight className="h-4 w-4" />
                     </div>
