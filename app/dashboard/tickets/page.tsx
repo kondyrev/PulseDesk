@@ -116,9 +116,9 @@ export default async function TicketsPage() {
         <div className="rounded-[32px] border border-black/5 bg-white shadow-[0_10px_40px_rgba(0,0,0,0.04)]">
           <div className="flex items-center justify-between border-b border-black/5 p-6">
             <div>
-              <h2 className="text-lg font-semibold tracking-tight">
+              <h1 className="text-lg font-semibold tracking-tight">
                 Оперативная лента
-              </h2>
+              </h1>
 
               <p className="mt-1 text-sm text-zinc-500">
                 Самые свежие обращения всегда сверху.
@@ -148,30 +148,10 @@ export default async function TicketsPage() {
           ) : (
             <div className="divide-y divide-black/5">
               {sortedTickets.map((ticket) => {
-                const lastCustomerMessage = ticket.messages.find(
-                  (message) => message.senderType === "customer"
-                );
-
-                const lastOperatorMessage = ticket.messages.find(
-                  (message) => message.senderType === "operator"
-                );
-
-                const needsReply =
-                  ticket.status !== "closed" &&
-                  !!lastCustomerMessage &&
-                  (!lastOperatorMessage ||
-                    lastCustomerMessage.createdAt >
-                      lastOperatorMessage.createdAt);
-
                 const activityAt =
                   ticket.messages[0]?.createdAt || ticket.createdAt;
 
-                const status =
-                  ticket.status === "new" && needsReply
-                    ? "waiting_operator"
-                    : ticket.status;
-
-                const view = getStatusView(status);
+                const view = getStatusView(ticket.status);
 
                 return (
                   <Link
@@ -190,7 +170,7 @@ export default async function TicketsPage() {
                           {view.label}
                         </span>
 
-                        {needsReply ? (
+                        {ticket.status === "waiting_operator" ? (
                           <span className="rounded-full bg-black px-3 py-1 text-xs font-semibold text-white">
                             Нужно ответить
                           </span>

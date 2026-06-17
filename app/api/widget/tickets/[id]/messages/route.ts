@@ -1,15 +1,26 @@
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
+import { createClient } from "@/lib/supabase/server";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-};
+async function getCurrentWorkspaceId() {
+  const supabase = await createClient();
 
-export async function OPTIONS() {
-  return NextResponse.json({}, { headers: corsHeaders });
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return null;
+  }
+
+  const { data: membership } = await supabase
+    .from("workspace_members")
+    .select("workspace_id")
+    .eq("profile_id", user.id)
+    .single();
+
+  return membership?.workspace_id || null;
 }
 
 export async function GET(
@@ -20,32 +31,16 @@ export async function GET(
 ) {
   try {
     const { id } = await context.params;
+    const workspaceId = await getCurrentWorkspaceId();
 
-    const { searchParams } = new URL(request.url);
-    const publicWidgetKey = searchParams.get("key");
-
-    if (!id || !publicWidgetKey) {
-      return NextResponse.json(
-        { error: "ticketId and widget key are required" },
-        { status: 400, headers: corsHeaders }
-      );
-    }
-
-    const widgetSettings = await prisma.widgetSetting.findUnique({
-      where: { publicWidgetKey },
-    });
-
-    if (!widgetSettings || !widgetSettings.isEnabled) {
-      return NextResponse.json(
-        { error: "Виджет отключен или не найден" },
-        { status: 403, headers: corsHeaders }
-      );
+    if (!workspaceId) {
+      return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
     }
 
     const ticket = await prisma.ticket.findFirst({
       where: {
         id,
-        workspaceId: widgetSettings.workspaceId,
+        workspaceId,
       },
       include: {
         messages: {
@@ -58,30 +53,104 @@ export async function GET(
 
     if (!ticket) {
       return NextResponse.json(
-        { error: "Обращение не найдено" },
-        { status: 404, headers: corsHeaders }
+        { error: "Обращение не найдено." },
+        { status: 404 }
       );
     }
 
-    return NextResponse.json(
-      {
-        ok: true,
-        closed: ticket.status === "closed",
-        messages: ticket.messages.map((message) => ({
-          id: message.id,
-          sender_type: message.senderType,
-          content: message.content,
-          created_at: message.createdAt,
-        })),
-      },
-      { headers: corsHeaders }
-    );
+    return NextResponse.json({
+      ok: true,
+      messages: ticket.messages.map((message) => ({
+        id: message.id,
+        sender_type: message.senderType,
+        content: message.content,
+        page_url: message.pageUrl,
+        created_at: message.createdAt,
+      })),
+    });
   } catch (error) {
-    console.error("Widget messages error:", error);
+    console.error("Ticket messages GET error:", error);
 
-    return NextResponse.json(
-      { error: "Ошибка сервера" },
-      { status: 500, headers: corsHeaders }
-    );
+    return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
+  }
+}
+
+export async function POST(
+  request: Request,
+  context: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  try {
+    const { id } = await context.params;
+    const body = await request.json();
+
+    const content = String(body.content || "").trim();
+
+    if (!content) {
+      return NextResponse.json(
+        { error: "Сообщение не может быть пустым." },
+        { status: 400 }
+      );
+    }
+
+    const workspaceId = await getCurrentWorkspaceId();
+
+    if (!workspaceId) {
+      return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
+    }
+
+    const ticket = await prisma.ticket.findFirst({
+      where: {
+        id,
+        workspaceId,
+      },
+    });
+
+    if (!ticket) {
+      return NextResponse.json(
+        { error: "Обращение не найдено." },
+        { status: 404 }
+      );
+    }
+
+    if (ticket.status === "closed") {
+      return NextResponse.json(
+        { error: "Обращение закрыто. Новые ответы недоступны." },
+        { status: 400 }
+      );
+    }
+
+    const message = await prisma.ticketMessage.create({
+      data: {
+        ticketId: ticket.id,
+        senderType: "operator",
+        content,
+      },
+    });
+
+    await prisma.ticket.update({
+      where: {
+        id: ticket.id,
+      },
+      data: {
+        status: "waiting_customer",
+      },
+    });
+
+    return NextResponse.json({
+      ok: true,
+      message: {
+        id: message.id,
+        sender_type: message.senderType,
+        content: message.content,
+        page_url: message.pageUrl,
+        created_at: message.createdAt,
+      },
+    });
+  } catch (error) {
+    console.error("Ticket messages POST error:", error);
+
+    return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
   }
 }

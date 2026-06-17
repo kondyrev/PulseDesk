@@ -106,7 +106,7 @@ export async function POST(request: Request) {
         title,
         customerName: customerName || null,
         customerEmail: customerEmail || null,
-        status: "new",
+        status: "waiting_operator",
         priority: "normal",
         source: "widget",
         messages: {
