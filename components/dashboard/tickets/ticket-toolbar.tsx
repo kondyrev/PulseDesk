@@ -42,6 +42,7 @@ export function TicketToolbar({
 
   const [loading, setLoading] = useState(false);
   const [showCloseDialog, setShowCloseDialog] = useState(false);
+  const [showReopenDialog, setShowReopenDialog] = useState(false);
 
   async function updateTicket(data: {
     status?: TicketStatus;
@@ -61,18 +62,31 @@ export function TicketToolbar({
 
     if (!response.ok) {
       alert("Не удалось обновить обращение.");
-      return;
+      return false;
     }
 
     router.refresh();
+    return true;
   }
 
   async function handleCloseTicket() {
-    await updateTicket({
+    const ok = await updateTicket({
       status: "closed",
     });
 
-    setShowCloseDialog(false);
+    if (ok) {
+      setShowCloseDialog(false);
+    }
+  }
+
+  async function handleReopenTicket() {
+    const ok = await updateTicket({
+      status: "waiting_operator",
+    });
+
+    if (ok) {
+      setShowReopenDialog(false);
+    }
   }
 
   return (
@@ -122,14 +136,25 @@ export function TicketToolbar({
           </select>
         </label>
 
-        <button
-          type="button"
-          disabled={loading || status === "closed"}
-          onClick={() => setShowCloseDialog(true)}
-          className="rounded-2xl bg-black px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Закрыть
-        </button>
+        {status === "closed" ? (
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => setShowReopenDialog(true)}
+            className="rounded-2xl bg-black px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Открыть обращение
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => setShowCloseDialog(true)}
+            className="rounded-2xl bg-black px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Закрыть обращение
+          </button>
+        )}
       </div>
 
       {showCloseDialog && (
@@ -160,6 +185,40 @@ export function TicketToolbar({
                 className="rounded-2xl bg-black px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
               >
                 Подтвердить закрытие
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showReopenDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[28px] bg-white p-6 shadow-2xl">
+            <h3 className="text-xl font-bold tracking-tight">
+              Открыть обращение?
+            </h3>
+
+            <p className="mt-3 text-sm leading-relaxed text-zinc-600">
+              Обращение вернётся в работу со статусом «Ждёт оператора». Клиент
+              снова сможет продолжить переписку.
+            </p>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowReopenDialog(false)}
+                className="rounded-2xl border border-black/10 px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+              >
+                Отмена
+              </button>
+
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleReopenTicket}
+                className="rounded-2xl bg-black px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+              >
+                Подтвердить открытие
               </button>
             </div>
           </div>
