@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
-import { ArrowUpRight, Inbox, Search } from "lucide-react";
+import { ArrowUpRight, Inbox, Search, X } from "lucide-react";
 
 import { TicketsAutoRefresh } from "@/components/dashboard/tickets/tickets-auto-refresh";
 import { prisma } from "@/lib/prisma";
@@ -83,17 +83,9 @@ function buildTicketsHref({
 }) {
   const params = new URLSearchParams();
 
-  if (filter !== "all") {
-    params.set("status", filter);
-  }
-
-  if (showClosed) {
-    params.set("showClosed", "true");
-  }
-
-  if (query) {
-    params.set("q", query);
-  }
+  if (filter !== "all") params.set("status", filter);
+  if (showClosed) params.set("showClosed", "true");
+  if (query) params.set("q", query);
 
   const search = params.toString();
 
@@ -121,9 +113,7 @@ export default async function TicketsPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
 
   const { data: membership } = await supabase
     .from("workspace_members")
@@ -232,38 +222,14 @@ export default async function TicketsPage({
       <div className="flex-1 p-6">
         <div className="rounded-[32px] border border-black/5 bg-white shadow-[0_10px_40px_rgba(0,0,0,0.04)]">
           <div className="border-b border-black/5 p-6">
-            <div className="flex items-start justify-between gap-6">
-              <div>
-                <h1 className="text-lg font-semibold tracking-tight">
-                  Оперативная лента
-                </h1>
+            <div>
+              <h1 className="text-lg font-semibold tracking-tight">
+                Оперативная лента
+              </h1>
 
-                <p className="mt-1 text-sm text-zinc-500">
-                  Самые свежие обращения всегда сверху.
-                </p>
-              </div>
-
-              <form
-                action="/dashboard/tickets"
-                className="relative hidden w-[320px] lg:block"
-              >
-                {activeFilter !== "all" ? (
-                  <input type="hidden" name="status" value={activeFilter} />
-                ) : null}
-
-                {showClosed ? (
-                  <input type="hidden" name="showClosed" value="true" />
-                ) : null}
-
-                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-
-                <input
-                  name="q"
-                  defaultValue={searchQuery}
-                  placeholder="Поиск обращения..."
-                  className="h-11 w-full rounded-2xl border border-black/5 bg-zinc-50 pl-11 pr-4 text-sm outline-none transition placeholder:text-zinc-400 focus:border-black/10 focus:bg-white"
-                />
-              </form>
+              <p className="mt-1 text-sm text-zinc-500">
+                Самые свежие обращения всегда сверху.
+              </p>
             </div>
 
             <div className="mt-6 flex flex-wrap items-center gap-2">
@@ -325,18 +291,41 @@ export default async function TicketsPage({
                 </span>
               </Link>
 
-              {searchQuery ? (
-                <Link
-                  href={buildTicketsHref({
-                    filter: activeFilter,
-                    showClosed,
-                    query: "",
-                  })}
-                  className="rounded-full px-4 py-2 text-sm font-semibold text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
-                >
-                  Сбросить поиск
-                </Link>
-              ) : null}
+              <form
+                action="/dashboard/tickets"
+                className="relative ml-auto w-full sm:w-[320px]"
+              >
+                {activeFilter !== "all" ? (
+                  <input type="hidden" name="status" value={activeFilter} />
+                ) : null}
+
+                {showClosed ? (
+                  <input type="hidden" name="showClosed" value="true" />
+                ) : null}
+
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+
+                <input
+                  name="q"
+                  defaultValue={searchQuery}
+                  placeholder="Поиск обращения..."
+                  className="h-10 w-full rounded-2xl border border-black/5 bg-zinc-50 pl-11 pr-11 text-sm outline-none transition placeholder:text-zinc-400 focus:border-black/10 focus:bg-white"
+                />
+
+                {searchQuery ? (
+                  <Link
+                    href={buildTicketsHref({
+                      filter: activeFilter,
+                      showClosed,
+                      query: "",
+                    })}
+                    className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-200 hover:text-zinc-700"
+                    aria-label="Очистить поиск"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Link>
+                ) : null}
+              </form>
             </div>
           </div>
 
