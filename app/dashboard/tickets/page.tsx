@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
-import { ArrowUpRight, Inbox } from "lucide-react";
+import { ArrowUpRight, Inbox, Search } from "lucide-react";
 
 import { TicketsAutoRefresh } from "@/components/dashboard/tickets/tickets-auto-refresh";
 import { prisma } from "@/lib/prisma";
@@ -72,7 +72,15 @@ function getFilter(value?: string): TicketsFilter {
   return "all";
 }
 
-function getFilterHref(filter: TicketsFilter, showClosed: boolean) {
+function buildTicketsHref({
+  filter,
+  showClosed,
+  query,
+}: {
+  filter: TicketsFilter;
+  showClosed: boolean;
+  query: string;
+}) {
   const params = new URLSearchParams();
 
   if (filter !== "all") {
@@ -83,35 +91,29 @@ function getFilterHref(filter: TicketsFilter, showClosed: boolean) {
     params.set("showClosed", "true");
   }
 
-  const query = params.toString();
-
-  return query ? `/dashboard/tickets?${query}` : "/dashboard/tickets";
-}
-
-function getClosedToggleHref(activeFilter: TicketsFilter, showClosed: boolean) {
-  const params = new URLSearchParams();
-
-  if (activeFilter !== "all") {
-    params.set("status", activeFilter);
+  if (query) {
+    params.set("q", query);
   }
 
-  if (!showClosed) {
-    params.set("showClosed", "true");
-  }
+  const search = params.toString();
 
-  const query = params.toString();
-
-  return query ? `/dashboard/tickets?${query}` : "/dashboard/tickets";
+  return search ? `/dashboard/tickets?${search}` : "/dashboard/tickets";
 }
 
 export default async function TicketsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; showClosed?: string }>;
+  searchParams: Promise<{
+    status?: string;
+    showClosed?: string;
+    q?: string;
+  }>;
 }) {
   const resolvedSearchParams = await searchParams;
+
   const activeFilter = getFilter(resolvedSearchParams.status);
   const showClosed = resolvedSearchParams.showClosed === "true";
+  const searchQuery = String(resolvedSearchParams.q || "").trim();
 
   const supabase = await createClient();
 
@@ -157,20 +159,37 @@ export default async function TicketsPage({
       })
     : [];
 
-  const activeTickets = tickets.filter((ticket) => ticket.status !== "closed");
+  const searchedTickets = searchQuery
+    ? tickets.filter((ticket) => {
+        const value = [
+          ticket.title,
+          ticket.customerName || "",
+          ticket.customerEmail || "",
+        ]
+          .join(" ")
+          .toLowerCase();
+
+        return value.includes(searchQuery.toLowerCase());
+      })
+    : tickets;
+
+  const activeTickets = searchedTickets.filter(
+    (ticket) => ticket.status !== "closed"
+  );
 
   const counts = {
     active: activeTickets.length,
-    waiting_operator: tickets.filter(
+    waiting_operator: searchedTickets.filter(
       (ticket) => ticket.status === "waiting_operator"
     ).length,
-    waiting_customer: tickets.filter(
+    waiting_customer: searchedTickets.filter(
       (ticket) => ticket.status === "waiting_customer"
     ).length,
-    closed: tickets.filter((ticket) => ticket.status === "closed").length,
+    closed: searchedTickets.filter((ticket) => ticket.status === "closed")
+      .length,
   };
 
-  const visibleBaseTickets = showClosed ? tickets : activeTickets;
+  const visibleBaseTickets = showClosed ? searchedTickets : activeTickets;
 
   const filteredTickets =
     activeFilter === "all"
@@ -224,9 +243,27 @@ export default async function TicketsPage({
                 </p>
               </div>
 
-              <div className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">
-                {sortedTickets.length} обращений
-              </div>
+              <form
+                action="/dashboard/tickets"
+                className="relative hidden w-[320px] lg:block"
+              >
+                {activeFilter !== "all" ? (
+                  <input type="hidden" name="status" value={activeFilter} />
+                ) : null}
+
+                {showClosed ? (
+                  <input type="hidden" name="showClosed" value="true" />
+                ) : null}
+
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+
+                <input
+                  name="q"
+                  defaultValue={searchQuery}
+                  placeholder="Поиск обращения..."
+                  className="h-11 w-full rounded-2xl border border-black/5 bg-zinc-50 pl-11 pr-4 text-sm outline-none transition placeholder:text-zinc-400 focus:border-black/10 focus:bg-white"
+                />
+              </form>
             </div>
 
             <div className="mt-6 flex flex-wrap items-center gap-2">
@@ -236,7 +273,11 @@ export default async function TicketsPage({
                 return (
                   <Link
                     key={filter.value}
-                    href={getFilterHref(filter.value, showClosed)}
+                    href={buildTicketsHref({
+                      filter: filter.value,
+                      showClosed,
+                      query: searchQuery,
+                    })}
                     className={
                       active
                         ? "rounded-full bg-black px-4 py-2 text-sm font-semibold text-white"
@@ -258,7 +299,11 @@ export default async function TicketsPage({
               })}
 
               <Link
-                href={getClosedToggleHref(activeFilter, showClosed)}
+                href={buildTicketsHref({
+                  filter: activeFilter,
+                  showClosed: !showClosed,
+                  query: searchQuery,
+                })}
                 className={
                   showClosed
                     ? "ml-1 inline-flex items-center gap-2 rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
@@ -279,6 +324,19 @@ export default async function TicketsPage({
                   {counts.closed}
                 </span>
               </Link>
+
+              {searchQuery ? (
+                <Link
+                  href={buildTicketsHref({
+                    filter: activeFilter,
+                    showClosed,
+                    query: "",
+                  })}
+                  className="rounded-full px-4 py-2 text-sm font-semibold text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
+                >
+                  Сбросить поиск
+                </Link>
+              ) : null}
             </div>
           </div>
 
