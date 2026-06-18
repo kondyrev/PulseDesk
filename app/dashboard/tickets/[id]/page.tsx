@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import { TicketAiPanel } from "@/components/dashboard/tickets/ticket-ai-panel";
 import { TicketMessagesPanel } from "@/components/dashboard/tickets/ticket-messages-panel";
 import { TicketReplyForm } from "@/components/dashboard/tickets/ticket-reply-form";
 import { TicketToolbar } from "@/components/dashboard/tickets/ticket-toolbar";
@@ -8,6 +9,41 @@ import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+function getStatusLabel(status: string) {
+  if (status === "new") return "Новое";
+  if (status === "closed") return "Закрыто";
+  if (status === "waiting_operator") return "Ждёт оператора";
+  if (status === "waiting_customer") return "Ждёт клиента";
+  if (status === "resolved") return "Решено";
+  if (status === "open") return "В работе";
+
+  return status;
+}
+
+function getPriorityLabel(priority: string) {
+  if (priority === "urgent") return "Срочный";
+  if (priority === "high") return "Высокий";
+  if (priority === "low") return "Низкий";
+
+  return "Обычный";
+}
+
+function getPriorityClass(priority: string) {
+  if (priority === "urgent") {
+    return "bg-red-50 text-red-700 ring-red-100";
+  }
+
+  if (priority === "high") {
+    return "bg-amber-50 text-amber-700 ring-amber-100";
+  }
+
+  if (priority === "low") {
+    return "bg-zinc-100 text-zinc-600 ring-zinc-200";
+  }
+
+  return "bg-blue-50 text-blue-600 ring-blue-100";
+}
 
 export default async function TicketDetailsPage({
   params,
@@ -96,28 +132,22 @@ export default async function TicketDetailsPage({
   }));
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_360px] overflow-hidden">
+    <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_380px] overflow-hidden">
       <div className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] border-r border-black/5 bg-[#f6f7f8]">
         <div className="border-b border-black/5 bg-white px-8 py-6">
           <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
             <div className="min-w-0">
-              <div className="mb-3 flex items-center gap-2">
-                <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">
-                  {ticket.status === "new"
-                    ? "Новое"
-                    : ticket.status === "closed"
-                      ? "Закрыто"
-                      : ticket.status === "waiting_operator"
-                        ? "Ждёт оператора"
-                        : ticket.status === "waiting_customer"
-                          ? "Ждёт клиента"
-                          : ticket.status}
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600 ring-1 ring-zinc-200">
+                  {getStatusLabel(ticket.status)}
                 </span>
 
-                <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600">
-                  {ticket.priority === "normal"
-                    ? "Обычный приоритет"
-                    : ticket.priority}
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 ${getPriorityClass(
+                    ticket.priority
+                  )}`}
+                >
+                  {getPriorityLabel(ticket.priority)}
                 </span>
               </div>
 
@@ -150,22 +180,7 @@ export default async function TicketDetailsPage({
       </div>
 
       <aside className="h-full overflow-y-auto bg-white p-6">
-        <div className="sticky top-6 space-y-6">
-          <div className="rounded-[32px] border border-black/5 p-6">
-            <div className="mb-3 text-sm font-semibold text-zinc-400">
-              Контекст обращения
-            </div>
-
-            <div className="text-base font-semibold text-zinc-900">
-              Скоро здесь будет ИИ-помощник
-            </div>
-
-            <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-              Эта панель останется местом для сводки, подсказок и рекомендаций
-              по обращению.
-            </p>
-          </div>
-        </div>
+        <TicketAiPanel ticketId={ticket.id} isClosed={isClosed} />
       </aside>
     </div>
   );

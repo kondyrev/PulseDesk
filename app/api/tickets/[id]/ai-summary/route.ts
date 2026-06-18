@@ -1,33 +1,27 @@
 import { NextResponse } from "next/server";
 
+import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 
-type AiStatusSuggestion = "waiting_operator" | "waiting_customer" | "resolved";
+type AiStatusSuggestion =
+  | "waiting_operator"
+  | "waiting_customer"
+  | "resolved"
+  | "closed";
 
 type AiSummary = {
   summary: string;
+  important: string;
+  customerIntent: string;
   sentiment: string;
+  urgency: string;
+  risk: string;
   recommendedAction: string;
+  nextStep: string;
   suggestedReply: string;
   statusSuggestion: AiStatusSuggestion;
   statusReason: string;
-};
-
-type TicketMessage = {
-  sender_type: string;
-  content: string;
-  page_url: string | null;
-  created_at: string;
-};
-
-type YandexCompletionResponse = {
-  result?: {
-    alternatives?: Array<{
-      message?: {
-        text?: string;
-      };
-    }>;
-  };
+  checklist: string[];
 };
 
 function extractJson(text: string): AiSummary | null {
@@ -46,91 +40,90 @@ function extractJson(text: string): AiSummary | null {
   }
 }
 
-function customerMessageLooksResolved(content: string) {
-  const text = content.toLowerCase();
-
-  return [
-    "всё работает",
-    "все работает",
-    "заработало",
-    "помогло",
-    "решено",
-    "проблема решена",
-    "вопрос закрыт",
-    "можно закрывать",
-    "спасибо, всё",
-    "спасибо, все",
-    "всё спасибо",
-    "все спасибо",
-    "спасибо, помогло",
-    "благодарю, помогло",
-    "деньги пришли",
-    "средства пришли",
-    "оплата прошла",
-    "возврат пришел",
-    "возврат пришёл",
-  ].some((phrase) => text.includes(phrase));
+function createFallbackSummary(): AiSummary {
+  return {
+    summary: "ИИ не смог уверенно подготовить сводку по обращению.",
+    important:
+      "Проверьте последние сообщения клиента и уточните, что именно требуется решить.",
+    customerIntent: "Нужно уточнить по диалогу.",
+    sentiment: "нейтральное",
+    urgency: "обычная",
+    risk: "низкий",
+    recommendedAction: "прочитать последние сообщения и ответить клиенту вручную",
+    nextStep: "подготовить короткий уточняющий ответ",
+    suggestedReply:
+      "Спасибо за сообщение. Уточните, пожалуйста, детали, чтобы мы могли быстрее помочь.",
+    statusSuggestion: "waiting_operator",
+    statusReason: "Требуется ручная проверка оператором.",
+    checklist: [
+      "Проверить последнее сообщение клиента",
+      "Уточнить недостающие данные",
+      "Ответить понятным и спокойным тоном",
+    ],
+  };
 }
 
-function getLastCustomerMessage(messages: TicketMessage[]) {
-  return [...messages]
-    .reverse()
-    .find((message) => message.sender_type === "customer");
-}
-
-function normalizeStatusByConversation(
-  summary: AiSummary,
-  messages: TicketMessage[],
-  currentStatus?: string | null
-): AiSummary {
-  const lastMessage = messages[messages.length - 1];
-  const lastCustomerMessage = getLastCustomerMessage(messages);
-
-  if (currentStatus === "closed") {
-    return {
-      ...summary,
-      statusSuggestion: "resolved",
-      statusReason: "Обращение уже закрыто.",
-    };
-  }
-
+function normalizeStatusSuggestion(value: string): AiStatusSuggestion {
   if (
-    lastCustomerMessage &&
-    customerMessageLooksResolved(lastCustomerMessage.content)
+    value === "waiting_operator" ||
+    value === "waiting_customer" ||
+    value === "resolved" ||
+    value === "closed"
   ) {
-    return {
-      ...summary,
-      statusSuggestion: "resolved",
-      statusReason:
-        "Клиент подтвердил, что вопрос решён или проблема устранена.",
-      recommendedAction: "закрыть обращение как решённое",
-    };
+    return value;
   }
 
-  if (!lastMessage) {
-    return summary;
+  return "waiting_operator";
+}
+
+function normalizeSummary(value: Partial<AiSummary> | null): AiSummary {
+  const fallback = createFallbackSummary();
+
+  if (!value) return fallback;
+
+  return {
+    summary: String(value.summary || fallback.summary).trim(),
+    important: String(value.important || fallback.important).trim(),
+    customerIntent: String(
+      value.customerIntent || fallback.customerIntent
+    ).trim(),
+    sentiment: String(value.sentiment || fallback.sentiment).trim(),
+    urgency: String(value.urgency || fallback.urgency).trim(),
+    risk: String(value.risk || fallback.risk).trim(),
+    recommendedAction: String(
+      value.recommendedAction || fallback.recommendedAction
+    ).trim(),
+    nextStep: String(value.nextStep || fallback.nextStep).trim(),
+    suggestedReply: String(value.suggestedReply || fallback.suggestedReply).trim(),
+    statusSuggestion: normalizeStatusSuggestion(
+      String(value.statusSuggestion || fallback.statusSuggestion)
+    ),
+    statusReason: String(value.statusReason || fallback.statusReason).trim(),
+    checklist:
+      Array.isArray(value.checklist) && value.checklist.length
+        ? value.checklist.map((item) => String(item)).slice(0, 5)
+        : fallback.checklist,
+  };
+}
+
+async function getCurrentWorkspaceId() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return null;
   }
 
-  if (lastMessage.sender_type === "customer") {
-    return {
-      ...summary,
-      statusSuggestion: "waiting_operator",
-      statusReason:
-        "Последнее сообщение написал клиент, значит обращение требует реакции оператора.",
-    };
-  }
+  const { data: membership } = await supabase
+    .from("workspace_members")
+    .select("workspace_id")
+    .eq("profile_id", user.id)
+    .single();
 
-  if (lastMessage.sender_type === "operator") {
-    return {
-      ...summary,
-      statusSuggestion: "waiting_customer",
-      statusReason:
-        summary.statusReason ||
-        "Последнее сообщение написал оператор, поэтому сейчас ожидается реакция клиента.",
-    };
-  }
-
-  return summary;
+  return membership?.workspace_id || null;
 }
 
 export async function POST(
@@ -153,177 +146,155 @@ export async function POST(
       );
     }
 
-    const supabase = await createClient();
+    const workspaceId = await getCurrentWorkspaceId();
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    if (!workspaceId) {
       return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
     }
 
-    const { data: membership } = await supabase
-      .from("workspace_members")
-      .select("workspace_id")
-      .eq("profile_id", user.id)
-      .single();
-
-    if (!membership) {
-      return NextResponse.json(
-        { error: "Рабочее пространство не найдено" },
-        { status: 403 }
-      );
-    }
-
-    const workspaceId = membership.workspace_id;
-
-    const { data: ticket } = await supabase
-      .from("tickets")
-      .select("id, title, customer_name, customer_email, status, priority, source")
-      .eq("id", id)
-      .eq("workspace_id", workspaceId)
-      .single();
+    const ticket = await prisma.ticket.findFirst({
+      where: {
+        id,
+        workspaceId,
+      },
+      include: {
+        messages: {
+          orderBy: {
+            createdAt: "asc",
+          },
+          take: 60,
+        },
+      },
+    });
 
     if (!ticket) {
       return NextResponse.json(
-        { error: "Обращение не найдено" },
+        { error: "Обращение не найдено." },
         { status: 404 }
       );
     }
 
-    const { data: messages, error: messagesError } = await supabase
-      .from("ticket_messages")
-      .select("sender_type, content, page_url, created_at")
-      .eq("ticket_id", ticket.id)
-      .eq("workspace_id", workspaceId)
-      .order("created_at", { ascending: true });
-
-    if (messagesError) {
-      return NextResponse.json(
-        { error: messagesError.message },
-        { status: 500 }
-      );
+    if (!ticket.messages.length) {
+      return NextResponse.json({
+        ok: true,
+        summary: createFallbackSummary(),
+      });
     }
 
-    const safeMessages = (messages || []) as TicketMessage[];
-    const lastMessage = safeMessages[safeMessages.length - 1];
-
-    const lastAuthor =
-      lastMessage?.sender_type === "operator"
-        ? "Оператор"
-        : lastMessage?.sender_type === "customer"
-          ? "Клиент"
-          : "нет сообщений";
-
-    const conversation = safeMessages
-      .map((message) => {
+    const conversation = ticket.messages
+      .map((message, index) => {
         const author =
-          message.sender_type === "operator" ? "Оператор" : "Клиент";
+          message.senderType === "customer"
+            ? "Клиент"
+            : message.senderType === "operator"
+              ? "Оператор"
+              : "Система";
 
-        return `${author}: ${message.content}`;
+        return `${index + 1}. ${author}: ${message.content}`;
       })
-      .join("\n");
+      .join("\n")
+      .slice(-12000);
 
-    const prompt = `
-Проанализируй обращение клиента для оператора поддержки.
+    const systemPrompt = `
+Ты — ИИ-помощник оператора службы поддержки PulseDesk.
 
-Обращение: ${ticket.title}
-Клиент: ${ticket.customer_name || "не указано"}
-Email: ${ticket.customer_email || "не указан"}
-Источник: ${ticket.source || "не указан"}
-Приоритет: ${ticket.priority || "не указан"}
-Текущий статус в системе: ${ticket.status || "не указан"}
-Последнее сообщение написал: ${lastAuthor}
+Твоя задача — не заменять оператора, а помогать ему быстрее понять обращение и подготовить качественный ответ.
 
-Переписка:
-${conversation || "Сообщений пока нет."}
+Отвечай только валидным JSON без Markdown.
 
-Верни строго JSON без markdown и без пояснений:
-
+Структура JSON:
 {
-  "summary": "краткая сводка обращения в 1-2 предложениях",
-  "sentiment": "настроение клиента одним коротким статусом",
-  "recommendedAction": "что оператору лучше сделать дальше",
-  "suggestedReply": "короткий рекомендуемый ответ клиенту",
-  "statusSuggestion": "waiting_operator | waiting_customer | resolved",
-  "statusReason": "почему выбран именно этот статус"
+  "summary": "короткая сводка обращения в 1-2 предложения",
+  "important": "самое важное, что оператор не должен упустить",
+  "customerIntent": "что клиент хочет получить",
+  "sentiment": "настроение клиента: спокойное / раздражённое / тревожное / благодарное / нейтральное",
+  "urgency": "срочность: низкая / обычная / высокая / критическая",
+  "risk": "риск: низкий / средний / высокий, и почему",
+  "recommendedAction": "что оператору лучше сделать сейчас",
+  "nextStep": "один конкретный следующий шаг",
+  "suggestedReply": "готовый черновик ответа клиенту на русском языке",
+  "statusSuggestion": "waiting_operator | waiting_customer | resolved | closed",
+  "statusReason": "почему предложен такой статус",
+  "checklist": ["короткий пункт", "короткий пункт", "короткий пункт"]
 }
 
-Важно:
-- Пиши на русском языке.
+Правила:
 - Не выдумывай факты.
-- Не подписывай ответ от имени PulseDesk.
-- PulseDesk — это внутренняя система поддержки, клиент не должен видеть это название.
-- Не используй гендерные формулировки от лица оператора.
-- Не используй слова "понял", "поняла", "рад", "рада", если пол оператора неизвестен.
-- Предпочитай нейтральные формулировки: "Спасибо за обращение", "Благодарим за уточнение", "Мы изучаем ситуацию", "Уточните, пожалуйста".
-- Если нужна подпись, используй нейтральное: "С уважением, служба поддержки".
+- Если данных мало, предложи уточняющий ответ.
+- Ответ клиенту должен быть вежливым, спокойным и без канцелярита.
+- Не обещай того, чего оператор не писал.
+- Если клиент явно подтвердил, что всё решено, предложи resolved.
+- Если последнее сообщение клиента требует ответа, предложи waiting_operator.
+- Если последнее сообщение оператора и он задал вопрос клиенту, предложи waiting_customer.
+`.trim();
+
+    const userPrompt = `
+Обращение:
+Тема: ${ticket.title}
+Клиент: ${ticket.customerName || "не указан"}
+Email: ${ticket.customerEmail || "не указан"}
+Текущий статус: ${ticket.status}
+Приоритет: ${ticket.priority}
+
+Диалог:
+${conversation}
 `.trim();
 
     const response = await fetch(
-      "https://ai.api.cloud.yandex.net/foundationModels/v1/completion",
+      "https://llm.api.cloud.yandex.net/foundationModels/v1/completion",
       {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Api-Key ${apiKey}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          modelUri: `gpt://${folderId}/${model}/latest`,
+          modelUri: `gpt://${folderId}/${model}`,
           completionOptions: {
             stream: false,
-            temperature: 0.15,
-            maxTokens: 1000,
+            temperature: 0.2,
+            maxTokens: 1800,
           },
           messages: [
             {
               role: "system",
-              text: "Ты ИИ-ассистент оператора поддержки. Анализируй обращения клиентов и возвращай только валидный JSON. Используй нейтральный профессиональный стиль без гендерных формулировок от лица оператора.",
+              text: systemPrompt,
             },
             {
               role: "user",
-              text: prompt,
+              text: userPrompt,
             },
           ],
         }),
       }
     );
 
-    const data = (await response.json()) as YandexCompletionResponse & {
-      error?: unknown;
-    };
+    const result = await response.json();
 
     if (!response.ok) {
+      console.error("YandexGPT error:", result);
+
       return NextResponse.json(
-        { error: "YandexGPT не смог подготовить сводку.", details: data.error },
+        { error: "Не удалось получить ответ от YandexGPT." },
         { status: 500 }
       );
     }
 
-    const rawText =
-      data.result?.alternatives?.[0]?.message?.text?.trim() || "";
+    const text =
+      result?.result?.alternatives?.[0]?.message?.text ||
+      result?.alternatives?.[0]?.message?.text ||
+      "";
 
-    const summary = extractJson(rawText);
-
-    if (!summary) {
-      return NextResponse.json(
-        { error: "YandexGPT вернул некорректный формат." },
-        { status: 500 }
-      );
-    }
-
-    const normalizedSummary = normalizeStatusByConversation(
-      summary,
-      safeMessages,
-      ticket.status
-    );
+    const parsed = extractJson(text);
+    const summary = normalizeSummary(parsed);
 
     return NextResponse.json({
       ok: true,
-      summary: normalizedSummary,
+      summary,
     });
-  } catch {
+  } catch (error) {
+    console.error("AI summary error:", error);
+
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
   }
 }
