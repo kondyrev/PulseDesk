@@ -337,10 +337,24 @@ export default async function TicketsPage({
                           </span>
                         ) : null}
 
-                        <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600 ring-1 ring-blue-100">
-                          {ticket.priority === "normal"
-                            ? "Обычный приоритет"
-                            : ticket.priority}
+                        <span
+                          className={
+                            ticket.priority === "urgent"
+                              ? "rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 ring-1 ring-red-100"
+                              : ticket.priority === "high"
+                                ? "rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-100"
+                                : ticket.priority === "low"
+                                  ? "rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600 ring-1 ring-zinc-200"
+                                  : "rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600 ring-1 ring-blue-100"
+                          }
+                        >
+                          {ticket.priority === "urgent"
+                            ? "Срочный"
+                            : ticket.priority === "high"
+                              ? "Высокий"
+                              : ticket.priority === "low"
+                                ? "Низкий"
+                                : "Обычный"}
                         </span>
 
                         <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600 ring-1 ring-emerald-100">
