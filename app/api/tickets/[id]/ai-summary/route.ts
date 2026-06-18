@@ -3,106 +3,73 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 
-type AiStatusSuggestion =
-  | "waiting_operator"
-  | "waiting_customer"
-  | "resolved"
-  | "closed";
-
-type AiSummary = {
-  summary: string;
-  important: string;
-  customerIntent: string;
-  sentiment: string;
-  urgency: string;
-  risk: string;
-  recommendedAction: string;
+type OperatorInsight = {
+  signal: string;
+  hiddenRisk: string;
+  bestReply: string;
+  shortReply: string;
+  warmReply: string;
+  formalReply: string;
+  questionsToAsk: string[];
+  dontDo: string[];
   nextStep: string;
-  suggestedReply: string;
-  statusSuggestion: AiStatusSuggestion;
-  statusReason: string;
-  checklist: string[];
 };
 
-function extractJson(text: string): AiSummary | null {
+function fallbackInsight(): OperatorInsight {
+  return {
+    signal:
+      "Недостаточно данных, чтобы уверенно понять эмоциональный контекст. Лучше ответить спокойно и уточнить детали.",
+    hiddenRisk:
+      "Главный риск — дать слишком общий ответ и не продвинуть обращение к решению.",
+    bestReply:
+      "Спасибо за сообщение. Уточните, пожалуйста, детали ситуации, чтобы мы могли быстрее разобраться и помочь.",
+    shortReply: "Спасибо! Уточните, пожалуйста, детали, и мы проверим.",
+    warmReply:
+      "Спасибо, что написали. Давайте разберёмся вместе — уточните, пожалуйста, детали ситуации.",
+    formalReply:
+      "Спасибо за обращение. Пожалуйста, уточните детали ситуации, чтобы мы могли провести проверку.",
+    questionsToAsk: ["Какие детали клиент ещё не сообщил?"],
+    dontDo: ["Не закрывать обращение без подтверждения клиента."],
+    nextStep: "Задать один уточняющий вопрос и дождаться ответа клиента.",
+  };
+}
+
+function extractJson(text: string): OperatorInsight | null {
   try {
-    return JSON.parse(text) as AiSummary;
+    return JSON.parse(text) as OperatorInsight;
   } catch {
     const match = text.match(/\{[\s\S]*\}/);
-
     if (!match) return null;
 
     try {
-      return JSON.parse(match[0]) as AiSummary;
+      return JSON.parse(match[0]) as OperatorInsight;
     } catch {
       return null;
     }
   }
 }
 
-function createFallbackSummary(): AiSummary {
-  return {
-    summary: "ИИ не смог уверенно подготовить сводку по обращению.",
-    important:
-      "Проверьте последние сообщения клиента и уточните, что именно требуется решить.",
-    customerIntent: "Нужно уточнить по диалогу.",
-    sentiment: "нейтральное",
-    urgency: "обычная",
-    risk: "низкий",
-    recommendedAction: "прочитать последние сообщения и ответить клиенту вручную",
-    nextStep: "подготовить короткий уточняющий ответ",
-    suggestedReply:
-      "Спасибо за сообщение. Уточните, пожалуйста, детали, чтобы мы могли быстрее помочь.",
-    statusSuggestion: "waiting_operator",
-    statusReason: "Требуется ручная проверка оператором.",
-    checklist: [
-      "Проверить последнее сообщение клиента",
-      "Уточнить недостающие данные",
-      "Ответить понятным и спокойным тоном",
-    ],
-  };
-}
-
-function normalizeStatusSuggestion(value: string): AiStatusSuggestion {
-  if (
-    value === "waiting_operator" ||
-    value === "waiting_customer" ||
-    value === "resolved" ||
-    value === "closed"
-  ) {
-    return value;
-  }
-
-  return "waiting_operator";
-}
-
-function normalizeSummary(value: Partial<AiSummary> | null): AiSummary {
-  const fallback = createFallbackSummary();
+function normalizeInsight(value: Partial<OperatorInsight> | null): OperatorInsight {
+  const fallback = fallbackInsight();
 
   if (!value) return fallback;
 
   return {
-    summary: String(value.summary || fallback.summary).trim(),
-    important: String(value.important || fallback.important).trim(),
-    customerIntent: String(
-      value.customerIntent || fallback.customerIntent
-    ).trim(),
-    sentiment: String(value.sentiment || fallback.sentiment).trim(),
-    urgency: String(value.urgency || fallback.urgency).trim(),
-    risk: String(value.risk || fallback.risk).trim(),
-    recommendedAction: String(
-      value.recommendedAction || fallback.recommendedAction
-    ).trim(),
+    signal: String(value.signal || fallback.signal).trim(),
+    hiddenRisk: String(value.hiddenRisk || fallback.hiddenRisk).trim(),
+    bestReply: String(value.bestReply || fallback.bestReply).trim(),
+    shortReply: String(value.shortReply || fallback.shortReply).trim(),
+    warmReply: String(value.warmReply || fallback.warmReply).trim(),
+    formalReply: String(value.formalReply || fallback.formalReply).trim(),
+    questionsToAsk:
+      Array.isArray(value.questionsToAsk) && value.questionsToAsk.length
+        ? value.questionsToAsk.map((item) => String(item)).slice(0, 4)
+        : fallback.questionsToAsk,
+    dontDo:
+      Array.isArray(value.dontDo) && value.dontDo.length
+        ? value.dontDo.map((item) => String(item)).slice(0, 4)
+        : fallback.dontDo,
     nextStep: String(value.nextStep || fallback.nextStep).trim(),
-    suggestedReply: String(value.suggestedReply || fallback.suggestedReply).trim(),
-    statusSuggestion: normalizeStatusSuggestion(
-      String(value.statusSuggestion || fallback.statusSuggestion)
-    ),
-    statusReason: String(value.statusReason || fallback.statusReason).trim(),
-    checklist:
-      Array.isArray(value.checklist) && value.checklist.length
-        ? value.checklist.map((item) => String(item)).slice(0, 5)
-        : fallback.checklist,
   };
 }
 
@@ -113,9 +80,7 @@ async function getCurrentWorkspaceId() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
 
   const { data: membership } = await supabase
     .from("workspace_members")
@@ -174,13 +139,6 @@ export async function POST(
       );
     }
 
-    if (!ticket.messages.length) {
-      return NextResponse.json({
-        ok: true,
-        summary: createFallbackSummary(),
-      });
-    }
-
     const conversation = ticket.messages
       .map((message, index) => {
         const author =
@@ -196,36 +154,39 @@ export async function POST(
       .slice(-12000);
 
     const systemPrompt = `
-Ты — ИИ-помощник оператора службы поддержки PulseDesk.
+Ты — опытный наставник оператора поддержки PulseDesk.
 
-Твоя задача — не заменять оператора, а помогать ему быстрее понять обращение и подготовить качественный ответ.
+Ты НЕ должен пересказывать очевидное.
+Твоя задача — помочь оператору выбрать правильную следующую реплику.
+
+Думай как специалист по клиентскому общению:
+- что клиент чувствует между строк;
+- где может возникнуть раздражение;
+- какой ответ снизит напряжение;
+- какой вопрос продвинет обращение к решению;
+- чего оператору лучше не делать.
 
 Отвечай только валидным JSON без Markdown.
 
-Структура JSON:
+Структура:
 {
-  "summary": "короткая сводка обращения в 1-2 предложения",
-  "important": "самое важное, что оператор не должен упустить",
-  "customerIntent": "что клиент хочет получить",
-  "sentiment": "настроение клиента: спокойное / раздражённое / тревожное / благодарное / нейтральное",
-  "urgency": "срочность: низкая / обычная / высокая / критическая",
-  "risk": "риск: низкий / средний / высокий, и почему",
-  "recommendedAction": "что оператору лучше сделать сейчас",
-  "nextStep": "один конкретный следующий шаг",
-  "suggestedReply": "готовый черновик ответа клиенту на русском языке",
-  "statusSuggestion": "waiting_operator | waiting_customer | resolved | closed",
-  "statusReason": "почему предложен такой статус",
-  "checklist": ["короткий пункт", "короткий пункт", "короткий пункт"]
+  "signal": "психологический сигнал разговора: что происходит с клиентом и какой тон нужен оператору",
+  "hiddenRisk": "скрытый риск: что может ухудшить ситуацию",
+  "bestReply": "лучший ответ клиенту прямо сейчас",
+  "shortReply": "очень короткая версия ответа",
+  "warmReply": "более мягкая и заботливая версия ответа",
+  "formalReply": "более официальная версия ответа",
+  "questionsToAsk": ["точный вопрос 1", "точный вопрос 2"],
+  "dontDo": ["чего оператору не делать", "чего избегать"],
+  "nextStep": "один конкретный следующий шаг оператора"
 }
 
 Правила:
+- Не пиши очевидности вроде 'ответить клиенту'.
 - Не выдумывай факты.
-- Если данных мало, предложи уточняющий ответ.
-- Ответ клиенту должен быть вежливым, спокойным и без канцелярита.
-- Не обещай того, чего оператор не писал.
-- Если клиент явно подтвердил, что всё решено, предложи resolved.
-- Если последнее сообщение клиента требует ответа, предложи waiting_operator.
-- Если последнее сообщение оператора и он задал вопрос клиенту, предложи waiting_customer.
+- Если данных мало — помоги задать правильный уточняющий вопрос.
+- Ответы должны звучать живо, по-русски, без канцелярита.
+- Не делай ИИ главным. Оператор принимает решение.
 `.trim();
 
     const userPrompt = `
@@ -237,7 +198,7 @@ Email: ${ticket.customerEmail || "не указан"}
 Приоритет: ${ticket.priority}
 
 Диалог:
-${conversation}
+${conversation || "Сообщений пока нет."}
 `.trim();
 
     const response = await fetch(
@@ -252,18 +213,12 @@ ${conversation}
           modelUri: `gpt://${folderId}/${model}`,
           completionOptions: {
             stream: false,
-            temperature: 0.2,
+            temperature: 0.35,
             maxTokens: 1800,
           },
           messages: [
-            {
-              role: "system",
-              text: systemPrompt,
-            },
-            {
-              role: "user",
-              text: userPrompt,
-            },
+            { role: "system", text: systemPrompt },
+            { role: "user", text: userPrompt },
           ],
         }),
       }
@@ -280,20 +235,15 @@ ${conversation}
       );
     }
 
-    const text =
-      result?.result?.alternatives?.[0]?.message?.text ||
-      result?.alternatives?.[0]?.message?.text ||
-      "";
-
-    const parsed = extractJson(text);
-    const summary = normalizeSummary(parsed);
+    const text = result?.result?.alternatives?.[0]?.message?.text || "";
+    const insight = normalizeInsight(extractJson(text));
 
     return NextResponse.json({
       ok: true,
-      summary,
+      insight,
     });
   } catch (error) {
-    console.error("AI summary error:", error);
+    console.error("AI operator insight error:", error);
 
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
   }
