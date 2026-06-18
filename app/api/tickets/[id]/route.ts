@@ -12,6 +12,8 @@ const allowedStatuses = new Set([
   "closed",
 ]);
 
+const allowedPriorities = new Set(["low", "normal", "high", "urgent"]);
+
 async function getCurrentWorkspaceId() {
   const supabase = await createClient();
 
@@ -42,11 +44,26 @@ export async function PATCH(
     const { id } = await context.params;
     const body = await request.json();
 
-    const status = String(body.status || "");
+    const status = body.status ? String(body.status) : null;
+    const priority = body.priority ? String(body.priority) : null;
 
-    if (!allowedStatuses.has(status)) {
+    if (!status && !priority) {
+      return NextResponse.json(
+        { error: "Нет данных для обновления." },
+        { status: 400 }
+      );
+    }
+
+    if (status && !allowedStatuses.has(status)) {
       return NextResponse.json(
         { error: "Некорректный статус обращения." },
+        { status: 400 }
+      );
+    }
+
+    if (priority && !allowedPriorities.has(priority)) {
+      return NextResponse.json(
+        { error: "Некорректный приоритет обращения." },
         { status: 400 }
       );
     }
@@ -76,7 +93,10 @@ export async function PATCH(
         id: existingTicket.id,
       },
       data: {
-        status: status as typeof existingTicket.status,
+        ...(status ? { status: status as typeof existingTicket.status } : {}),
+        ...(priority
+          ? { priority: priority as typeof existingTicket.priority }
+          : {}),
       },
     });
 
@@ -85,6 +105,7 @@ export async function PATCH(
       ticket: {
         id: ticket.id,
         status: ticket.status,
+        priority: ticket.priority,
       },
     });
   } catch (error) {
