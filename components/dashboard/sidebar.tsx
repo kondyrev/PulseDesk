@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
-  ChevronLeft,
-  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Inbox,
   LayoutDashboard,
   Settings,
@@ -63,13 +63,27 @@ export function DashboardSidebar({
 
   return (
     <aside
-      className={`hidden shrink-0 border-r border-black/5 bg-white transition-all duration-200 lg:block ${
+      className={`relative hidden shrink-0 border-r border-black/5 bg-white transition-all duration-200 lg:block ${
         collapsed ? "w-[76px]" : "w-[260px]"
       }`}
     >
+      <button
+        type="button"
+        onClick={toggleCollapsed}
+        className="absolute right-[-18px] top-8 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-black/5 bg-white text-zinc-600 shadow-[0_10px_30px_rgba(0,0,0,0.10)] transition hover:scale-105 hover:text-black"
+        aria-label={collapsed ? "Развернуть меню" : "Свернуть меню"}
+        title={collapsed ? "Развернуть меню" : "Свернуть меню"}
+      >
+        {collapsed ? (
+          <ChevronsRight className="h-4 w-4" />
+        ) : (
+          <ChevronsLeft className="h-4 w-4" />
+        )}
+      </button>
+
       <div
         className={`flex h-20 items-center ${
-          collapsed ? "justify-center px-3" : "justify-between px-6"
+          collapsed ? "justify-center px-3" : "px-6"
         }`}
       >
         {collapsed ? (
@@ -84,24 +98,6 @@ export function DashboardSidebar({
             </div>
           </div>
         )}
-
-        <button
-          type="button"
-          onClick={toggleCollapsed}
-          className={
-            collapsed
-              ? "absolute left-[54px] top-6 flex h-7 w-7 items-center justify-center rounded-full border border-black/5 bg-white text-zinc-500 shadow-sm transition hover:text-black"
-              : "flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-100 hover:text-black"
-          }
-          aria-label={collapsed ? "Развернуть меню" : "Свернуть меню"}
-          title={collapsed ? "Развернуть меню" : "Свернуть меню"}
-        >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <ChevronLeft className="h-4 w-4" />
-          )}
-        </button>
       </div>
 
       <nav className="space-y-1 px-3">
