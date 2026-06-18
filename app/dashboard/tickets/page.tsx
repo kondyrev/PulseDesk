@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { ru } from "date-fns/locale";
-import { ArrowUpRight, Inbox, Search, X } from "lucide-react";
+import { ArrowUpRight, Inbox } from "lucide-react";
 
 import { TicketsAutoRefresh } from "@/components/dashboard/tickets/tickets-auto-refresh";
 import { prisma } from "@/lib/prisma";
@@ -72,40 +72,46 @@ function getFilter(value?: string): TicketsFilter {
   return "all";
 }
 
-function buildTicketsHref({
-  filter,
-  showClosed,
-  query,
-}: {
-  filter: TicketsFilter;
-  showClosed: boolean;
-  query: string;
-}) {
+function getFilterHref(filter: TicketsFilter, showClosed: boolean) {
   const params = new URLSearchParams();
 
-  if (filter !== "all") params.set("status", filter);
-  if (showClosed) params.set("showClosed", "true");
-  if (query) params.set("q", query);
+  if (filter !== "all") {
+    params.set("status", filter);
+  }
 
-  const search = params.toString();
+  if (showClosed) {
+    params.set("showClosed", "true");
+  }
 
-  return search ? `/dashboard/tickets?${search}` : "/dashboard/tickets";
+  const query = params.toString();
+
+  return query ? `/dashboard/tickets?${query}` : "/dashboard/tickets";
+}
+
+function getClosedToggleHref(activeFilter: TicketsFilter, showClosed: boolean) {
+  const params = new URLSearchParams();
+
+  if (activeFilter !== "all") {
+    params.set("status", activeFilter);
+  }
+
+  if (!showClosed) {
+    params.set("showClosed", "true");
+  }
+
+  const query = params.toString();
+
+  return query ? `/dashboard/tickets?${query}` : "/dashboard/tickets";
 }
 
 export default async function TicketsPage({
   searchParams,
 }: {
-  searchParams: Promise<{
-    status?: string;
-    showClosed?: string;
-    q?: string;
-  }>;
+  searchParams: Promise<{ status?: string; showClosed?: string }>;
 }) {
   const resolvedSearchParams = await searchParams;
-
   const activeFilter = getFilter(resolvedSearchParams.status);
   const showClosed = resolvedSearchParams.showClosed === "true";
-  const searchQuery = String(resolvedSearchParams.q || "").trim();
 
   const supabase = await createClient();
 
@@ -113,7 +119,9 @@ export default async function TicketsPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return null;
+  if (!user) {
+    return null;
+  }
 
   const { data: membership } = await supabase
     .from("workspace_members")
@@ -149,37 +157,20 @@ export default async function TicketsPage({
       })
     : [];
 
-  const searchedTickets = searchQuery
-    ? tickets.filter((ticket) => {
-        const value = [
-          ticket.title,
-          ticket.customerName || "",
-          ticket.customerEmail || "",
-        ]
-          .join(" ")
-          .toLowerCase();
-
-        return value.includes(searchQuery.toLowerCase());
-      })
-    : tickets;
-
-  const activeTickets = searchedTickets.filter(
-    (ticket) => ticket.status !== "closed"
-  );
+  const activeTickets = tickets.filter((ticket) => ticket.status !== "closed");
 
   const counts = {
     active: activeTickets.length,
-    waiting_operator: searchedTickets.filter(
+    waiting_operator: tickets.filter(
       (ticket) => ticket.status === "waiting_operator"
     ).length,
-    waiting_customer: searchedTickets.filter(
+    waiting_customer: tickets.filter(
       (ticket) => ticket.status === "waiting_customer"
     ).length,
-    closed: searchedTickets.filter((ticket) => ticket.status === "closed")
-      .length,
+    closed: tickets.filter((ticket) => ticket.status === "closed").length,
   };
 
-  const visibleBaseTickets = showClosed ? searchedTickets : activeTickets;
+  const visibleBaseTickets = showClosed ? tickets : activeTickets;
 
   const filteredTickets =
     activeFilter === "all"
@@ -222,14 +213,20 @@ export default async function TicketsPage({
       <div className="flex-1 p-6">
         <div className="rounded-[32px] border border-black/5 bg-white shadow-[0_10px_40px_rgba(0,0,0,0.04)]">
           <div className="border-b border-black/5 p-6">
-            <div>
-              <h1 className="text-lg font-semibold tracking-tight">
-                Оперативная лента
-              </h1>
+            <div className="flex items-start justify-between gap-6">
+              <div>
+                <h1 className="text-lg font-semibold tracking-tight">
+                  Оперативная лента
+                </h1>
 
-              <p className="mt-1 text-sm text-zinc-500">
-                Самые свежие обращения всегда сверху.
-              </p>
+                <p className="mt-1 text-sm text-zinc-500">
+                  Самые свежие обращения всегда сверху.
+                </p>
+              </div>
+
+              <div className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">
+                {sortedTickets.length} обращений
+              </div>
             </div>
 
             <div className="mt-6 flex flex-wrap items-center gap-2">
@@ -239,11 +236,7 @@ export default async function TicketsPage({
                 return (
                   <Link
                     key={filter.value}
-                    href={buildTicketsHref({
-                      filter: filter.value,
-                      showClosed,
-                      query: searchQuery,
-                    })}
+                    href={getFilterHref(filter.value, showClosed)}
                     className={
                       active
                         ? "rounded-full bg-black px-4 py-2 text-sm font-semibold text-white"
@@ -265,11 +258,7 @@ export default async function TicketsPage({
               })}
 
               <Link
-                href={buildTicketsHref({
-                  filter: activeFilter,
-                  showClosed: !showClosed,
-                  query: searchQuery,
-                })}
+                href={getClosedToggleHref(activeFilter, showClosed)}
                 className={
                   showClosed
                     ? "ml-1 inline-flex items-center gap-2 rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white"
@@ -290,42 +279,6 @@ export default async function TicketsPage({
                   {counts.closed}
                 </span>
               </Link>
-
-              <form
-                action="/dashboard/tickets"
-                className="relative ml-auto w-full sm:w-[320px]"
-              >
-                {activeFilter !== "all" ? (
-                  <input type="hidden" name="status" value={activeFilter} />
-                ) : null}
-
-                {showClosed ? (
-                  <input type="hidden" name="showClosed" value="true" />
-                ) : null}
-
-                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-
-                <input
-                  name="q"
-                  defaultValue={searchQuery}
-                  placeholder="Поиск обращения..."
-                  className="h-10 w-full rounded-2xl border border-black/5 bg-zinc-50 pl-11 pr-11 text-sm outline-none transition placeholder:text-zinc-400 focus:border-black/10 focus:bg-white"
-                />
-
-                {searchQuery ? (
-                  <Link
-                    href={buildTicketsHref({
-                      filter: activeFilter,
-                      showClosed,
-                      query: "",
-                    })}
-                    className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-200 hover:text-zinc-700"
-                    aria-label="Очистить поиск"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </Link>
-                ) : null}
-              </form>
             </div>
           </div>
 
