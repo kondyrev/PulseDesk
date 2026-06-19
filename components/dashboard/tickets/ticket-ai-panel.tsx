@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Clipboard,
@@ -22,14 +21,6 @@ type AiSummary = {
   statusReason: string;
 };
 
-function isKnownStatus(value: string): value is AiStatusSuggestion {
-  return (
-    value === "waiting_operator" ||
-    value === "waiting_customer" ||
-    value === "resolved"
-  );
-}
-
 export function TicketAiPanel({
   ticketId,
   isClosed,
@@ -37,21 +28,18 @@ export function TicketAiPanel({
   ticketId: string;
   isClosed: boolean;
 }) {
-  const router = useRouter();
   const refreshTimeoutRef = useRef<number | null>(null);
 
   const [data, setData] = useState<AiSummary | null>(null);
   const [loading, setLoading] = useState(!isClosed);
   const [refreshing, setRefreshing] = useState(false);
-  const [closing, setClosing] = useState(false);
-  const [closed, setClosed] = useState(isClosed);
   const [copied, setCopied] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [error, setError] = useState("");
-  const [showDetails, setShowDetails] = useState(false);
 
   const loadSummary = useCallback(
     async ({ silent = false }: { silent?: boolean } = {}) => {
-      if (closed) return;
+      if (isClosed) return;
 
       if (silent) {
         setRefreshing(true);
@@ -61,27 +49,31 @@ export function TicketAiPanel({
 
       setError("");
 
-      const response = await fetch(`/api/tickets/${ticketId}/ai-summary`, {
-        method: "POST",
-      });
+      try {
+        const response = await fetch(`/api/tickets/${ticketId}/ai-summary`, {
+          method: "POST",
+        });
 
-      const result = await response.json();
+        const result = await response.json();
 
-      setLoading(false);
-      setRefreshing(false);
+        if (!response.ok || !result.ok) {
+          setError(result.error || "Не удалось подготовить подсказку.");
+          return;
+        }
 
-      if (!response.ok || !result.ok) {
-        setError(result.error || "Не удалось подготовить подсказку.");
-        return;
+        setData(result.summary);
+      } catch {
+        setError("Не удалось связаться со Вторым пилотом.");
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-
-      setData(result.summary);
     },
-    [closed, ticketId]
+    [isClosed, ticketId]
   );
 
   useEffect(() => {
-    if (closed) return;
+    if (isClosed) return;
 
     loadSummary();
 
@@ -96,7 +88,7 @@ export function TicketAiPanel({
 
       refreshTimeoutRef.current = window.setTimeout(() => {
         loadSummary({ silent: true });
-      }, 600);
+      }, 700);
     }
 
     window.addEventListener("pulsedesk:messages-updated", handleMessagesUpdated);
@@ -111,10 +103,10 @@ export function TicketAiPanel({
         handleMessagesUpdated
       );
     };
-  }, [closed, loadSummary, ticketId]);
+  }, [isClosed, loadSummary, ticketId]);
 
-  function handleInsertReply() {
-    if (!data?.suggestedReply || closed) return;
+  function insertReply() {
+    if (!data?.suggestedReply || isClosed) return;
 
     window.dispatchEvent(
       new CustomEvent("pulsedesk:insert-ai-reply", {
@@ -125,11 +117,10 @@ export function TicketAiPanel({
     );
   }
 
-  async function handleCopyReply() {
+  async function copyReply() {
     if (!data?.suggestedReply) return;
 
     await navigator.clipboard.writeText(data.suggestedReply);
-
     setCopied(true);
 
     window.setTimeout(() => {
@@ -137,66 +128,16 @@ export function TicketAiPanel({
     }, 1400);
   }
 
-  async function handleCloseTicket() {
-    setClosing(true);
-    setError("");
-
-    const response = await fetch(`/api/tickets/${ticketId}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        status: "closed",
-      }),
-    });
-
-    const result = await response.json();
-
-    setClosing(false);
-
-    if (!response.ok || !result.ok) {
-      setError(result.error || "Не удалось закрыть обращение.");
-      return;
-    }
-
-    setClosed(true);
-    setData(null);
-
-    window.dispatchEvent(
-      new CustomEvent("pulsedesk:ticket-closed", {
-        detail: {
-          ticketId,
-        },
-      })
-    );
-
-    router.refresh();
-  }
-
-  if (closed) {
+  if (isClosed) {
     return (
-      <div className="sticky top-6 space-y-5">
-        <div className="rounded-[32px] border border-emerald-200 bg-emerald-50 p-6">
-          <div className="text-base font-semibold text-emerald-700">
-            ✓ Обращение закрыто
-          </div>
-
-          <p className="mt-2 text-sm text-emerald-600">
-            Второй пилот сохранит контекст, но новые подсказки недоступны.
-          </p>
+      <div className="sticky top-6 rounded-[32px] border border-emerald-200 bg-emerald-50 p-6">
+        <div className="text-base font-semibold text-emerald-700">
+          ✓ Обращение закрыто
         </div>
 
-        <div className="rounded-[32px] border border-black/5 bg-white p-6">
-          <div className="text-sm font-semibold text-zinc-500">
-            История обращения сохранена.
-          </div>
-
-          <p className="mt-2 text-sm leading-relaxed text-zinc-500">
-            Если клиент вернётся с этим вопросом, обращение можно будет открыть
-            заново.
-          </p>
-        </div>
+        <p className="mt-2 text-sm text-emerald-600">
+          Второй пилот сохранит контекст, но новые подсказки недоступны.
+        </p>
       </div>
     );
   }
@@ -248,10 +189,6 @@ export function TicketAiPanel({
     );
   }
 
-  const status = isKnownStatus(data.statusSuggestion)
-    ? data.statusSuggestion
-    : "waiting_operator";
-
   return (
     <div className="sticky top-6 space-y-5">
       {refreshing ? (
@@ -269,7 +206,6 @@ export function TicketAiPanel({
 
             <div>
               <div className="font-bold tracking-tight">Второй пилот</div>
-
               <div className="mt-1 inline-flex rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-500">
                 1 мысль · 1 действие · 1 ответ
               </div>
@@ -327,14 +263,15 @@ export function TicketAiPanel({
 
         <div className="mt-5 flex gap-2">
           <button
-            onClick={handleInsertReply}
-            className="flex-1 rounded-2xl bg-black px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+            onClick={insertReply}
+            disabled={isClosed}
+            className="flex-1 rounded-2xl bg-black px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Вставить в ответ
           </button>
 
           <button
-            onClick={handleCopyReply}
+            onClick={copyReply}
             className="rounded-2xl bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-200"
             title="Скопировать ответ"
           >
@@ -343,29 +280,10 @@ export function TicketAiPanel({
         </div>
       </div>
 
-      {status === "resolved" ? (
-        <div className="rounded-[32px] border border-emerald-200 bg-emerald-50 p-6">
-          <div className="text-base font-semibold text-emerald-700">
-            ✓ Похоже, обращение можно закрыть
-          </div>
-
-          <p className="mt-2 text-sm text-emerald-600">
-            Второй пилот считает, что вопрос клиента решён.
-          </p>
-
-          <button
-            onClick={handleCloseTicket}
-            disabled={closing}
-            className="mt-4 rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {closing ? "Закрываем..." : "Закрыть обращение"}
-          </button>
-        </div>
-      ) : null}
-
       <div className="rounded-[32px] border border-black/5 bg-white p-6 shadow-sm">
         <button
-          onClick={() => setShowDetails((value) => !value)}
+          type="button"
+          onClick={() => setDetailsOpen((value) => !value)}
           className="flex w-full items-center justify-between text-left"
         >
           <span className="text-sm font-bold text-zinc-900">
@@ -373,11 +291,11 @@ export function TicketAiPanel({
           </span>
 
           <span className="text-xs font-semibold text-zinc-400">
-            {showDetails ? "Скрыть" : "Показать"}
+            {detailsOpen ? "Скрыть" : "Показать"}
           </span>
         </button>
 
-        {showDetails ? (
+        {detailsOpen ? (
           <div className="mt-5 space-y-5">
             <div>
               <div className="mb-2 text-xs font-bold uppercase tracking-wide text-zinc-400">
@@ -399,7 +317,7 @@ export function TicketAiPanel({
               </p>
             </div>
 
-            {status === "waiting_customer" ? (
+            {data.statusSuggestion === "waiting_customer" ? (
               <div className="rounded-[24px] bg-blue-50 p-4">
                 <div className="text-sm font-semibold text-blue-700">
                   Сейчас ждём клиента
@@ -412,7 +330,7 @@ export function TicketAiPanel({
               </div>
             ) : null}
 
-            {status === "waiting_operator" ? (
+            {data.statusSuggestion === "waiting_operator" ? (
               <div className="rounded-[24px] bg-amber-50 p-4">
                 <div className="text-sm font-semibold text-amber-700">
                   Нужна реакция оператора
