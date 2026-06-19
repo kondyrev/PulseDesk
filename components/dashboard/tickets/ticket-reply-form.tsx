@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function TicketReplyForm({
   ticketId,
@@ -12,6 +12,31 @@ export function TicketReplyForm({
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    function handleInsertReply(event: Event) {
+      const customEvent = event as CustomEvent<{
+        text?: string;
+      }>;
+
+      if (!customEvent.detail?.text) return;
+
+      setContent(customEvent.detail.text);
+      setError("");
+    }
+
+    window.addEventListener(
+      "pulsedesk:insert-ai-reply",
+      handleInsertReply
+    );
+
+    return () => {
+      window.removeEventListener(
+        "pulsedesk:insert-ai-reply",
+        handleInsertReply
+      );
+    };
+  }, []);
 
   async function handleSubmit() {
     if (isClosed) return;
@@ -87,7 +112,11 @@ export function TicketReplyForm({
         </div>
       ) : null}
 
-      <div className="mt-4 flex items-center justify-end">
+      <div className="mt-4 flex items-center justify-between">
+        <div className="text-xs text-zinc-400">
+          Второй пилот может подготовить ответ за вас
+        </div>
+
         <button
           onClick={handleSubmit}
           disabled={loading}
