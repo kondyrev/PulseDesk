@@ -10,15 +10,16 @@ import {
   Wand2,
 } from "lucide-react";
 
-type AiStatusSuggestion = "waiting_operator" | "waiting_customer" | "resolved";
-
-type AiSummary = {
-  summary: string;
-  sentiment: string;
-  recommendedAction: string;
-  suggestedReply: string;
-  statusSuggestion: AiStatusSuggestion;
-  statusReason: string;
+type OperatorInsight = {
+  signal: string;
+  hiddenRisk: string;
+  bestReply: string;
+  shortReply: string;
+  warmReply: string;
+  formalReply: string;
+  questionsToAsk: string[];
+  dontDo: string[];
+  nextStep: string;
 };
 
 export function TicketAiPanel({
@@ -30,17 +31,15 @@ export function TicketAiPanel({
 }) {
   const refreshTimeoutRef = useRef<number | null>(null);
 
-  const [data, setData] = useState<AiSummary | null>(null);
-  const [loading, setLoading] = useState(!isClosed);
+  const [insight, setInsight] = useState<OperatorInsight | null>(null);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [error, setError] = useState("");
 
-  const loadSummary = useCallback(
+  const loadInsight = useCallback(
     async ({ silent = false }: { silent?: boolean } = {}) => {
-      if (isClosed) return;
-
       if (silent) {
         setRefreshing(true);
       } else {
@@ -57,11 +56,11 @@ export function TicketAiPanel({
         const result = await response.json();
 
         if (!response.ok || !result.ok) {
-          setError(result.error || "Не удалось подготовить подсказку.");
+          setError(result.error || "Не удалось подготовить подсказки.");
           return;
         }
 
-        setData(result.summary);
+        setInsight(result.insight);
       } catch {
         setError("Не удалось связаться со Вторым пилотом.");
       } finally {
@@ -69,13 +68,11 @@ export function TicketAiPanel({
         setRefreshing(false);
       }
     },
-    [isClosed, ticketId]
+    [ticketId]
   );
 
   useEffect(() => {
-    if (isClosed) return;
-
-    loadSummary();
+    loadInsight();
 
     function handleMessagesUpdated(event: Event) {
       const customEvent = event as CustomEvent<{ ticketId?: string }>;
@@ -87,7 +84,7 @@ export function TicketAiPanel({
       }
 
       refreshTimeoutRef.current = window.setTimeout(() => {
-        loadSummary({ silent: true });
+        loadInsight({ silent: true });
       }, 700);
     }
 
@@ -103,43 +100,30 @@ export function TicketAiPanel({
         handleMessagesUpdated
       );
     };
-  }, [isClosed, loadSummary, ticketId]);
+  }, [loadInsight, ticketId]);
 
   function insertReply() {
-    if (!data?.suggestedReply || isClosed) return;
+    if (!insight?.bestReply || isClosed) return;
 
     window.dispatchEvent(
       new CustomEvent("pulsedesk:insert-ai-reply", {
         detail: {
-          text: data.suggestedReply,
+          text: insight.bestReply,
         },
       })
     );
   }
 
   async function copyReply() {
-    if (!data?.suggestedReply) return;
+    if (!insight?.bestReply) return;
 
-    await navigator.clipboard.writeText(data.suggestedReply);
+    await navigator.clipboard.writeText(insight.bestReply);
+
     setCopied(true);
 
     window.setTimeout(() => {
       setCopied(false);
     }, 1400);
-  }
-
-  if (isClosed) {
-    return (
-      <div className="sticky top-6 rounded-[32px] border border-emerald-200 bg-emerald-50 p-6">
-        <div className="text-base font-semibold text-emerald-700">
-          ✓ Обращение закрыто
-        </div>
-
-        <p className="mt-2 text-sm text-emerald-600">
-          Второй пилот сохранит контекст, но новые подсказки недоступны.
-        </p>
-      </div>
-    );
   }
 
   if (loading) {
@@ -167,7 +151,7 @@ export function TicketAiPanel({
     );
   }
 
-  if (error || !data) {
+  if (error || !insight) {
     return (
       <div className="sticky top-6 rounded-[32px] border border-red-100 bg-red-50 p-6">
         <div className="flex items-center gap-3 text-red-700">
@@ -176,11 +160,11 @@ export function TicketAiPanel({
         </div>
 
         <p className="mt-3 text-sm leading-relaxed text-red-600">
-          {error || "Не удалось загрузить подсказку."}
+          {error || "Не удалось загрузить подсказки."}
         </p>
 
         <button
-          onClick={() => loadSummary()}
+          onClick={() => loadInsight()}
           className="mt-5 rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-red-700 ring-1 ring-red-100 transition hover:bg-red-100"
         >
           Повторить
@@ -191,12 +175,6 @@ export function TicketAiPanel({
 
   return (
     <div className="sticky top-6 space-y-5">
-      {refreshing ? (
-        <div className="rounded-[24px] border border-blue-100 bg-blue-50 px-5 py-4 text-sm font-medium text-blue-700">
-          Второй пилот обновляет подсказку...
-        </div>
-      ) : null}
-
       <div className="rounded-[32px] border border-black/5 bg-white p-6 shadow-sm">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -206,14 +184,14 @@ export function TicketAiPanel({
 
             <div>
               <div className="font-bold tracking-tight">Второй пилот</div>
-              <div className="mt-1 inline-flex rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-500">
+              <div className="text-xs text-zinc-500">
                 1 мысль · 1 действие · 1 ответ
               </div>
             </div>
           </div>
 
           <button
-            onClick={() => loadSummary()}
+            onClick={() => loadInsight()}
             disabled={refreshing}
             className="flex h-9 w-9 items-center justify-center rounded-2xl bg-zinc-50 text-zinc-500 ring-1 ring-black/5 transition hover:bg-zinc-100 hover:text-black disabled:opacity-50"
             title="Обновить подсказку"
@@ -224,25 +202,24 @@ export function TicketAiPanel({
           </button>
         </div>
 
-        <div className="rounded-[26px] border border-amber-200 bg-amber-50 p-5">
-          <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-amber-600">
-            <AlertTriangle className="h-4 w-4" />
-            Что происходит
+        <div className="rounded-[26px] bg-zinc-950 p-5 text-white">
+          <div className="mb-2 text-xs font-bold uppercase tracking-wide text-white/40">
+            Сигнал
           </div>
 
-          <p className="text-sm leading-relaxed text-amber-900">
-            {data.summary}
+          <p className="text-sm leading-relaxed text-white/90">
+            {insight.signal}
           </p>
         </div>
 
-        <div className="mt-4 rounded-[26px] border border-emerald-200 bg-emerald-50 p-5">
-          <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-emerald-600">
+        <div className="mt-4 rounded-[26px] bg-zinc-50 p-5">
+          <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-zinc-400">
             <Target className="h-4 w-4" />
-            Что делать дальше
+            Следующий шаг
           </div>
 
-          <p className="text-sm leading-relaxed text-emerald-900">
-            {data.recommendedAction}
+          <p className="text-sm leading-relaxed text-zinc-800">
+            {insight.nextStep}
           </p>
         </div>
       </div>
@@ -257,7 +234,7 @@ export function TicketAiPanel({
 
         <div className="rounded-[26px] bg-zinc-50 p-5">
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">
-            {data.suggestedReply}
+            {insight.bestReply}
           </p>
         </div>
 
@@ -273,7 +250,6 @@ export function TicketAiPanel({
           <button
             onClick={copyReply}
             className="rounded-2xl bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-200"
-            title="Скопировать ответ"
           >
             {copied ? "Готово" : <Clipboard className="h-4 w-4" />}
           </button>
@@ -298,49 +274,80 @@ export function TicketAiPanel({
         {detailsOpen ? (
           <div className="mt-5 space-y-5">
             <div>
-              <div className="mb-2 text-xs font-bold uppercase tracking-wide text-zinc-400">
-                Настроение клиента
+              <div className="mb-2 text-xs font-bold uppercase tracking-wide text-red-400">
+                Скрытый риск
               </div>
 
-              <div className="inline-flex rounded-full bg-zinc-100 px-3 py-1 text-sm font-semibold text-zinc-700">
-                {data.sentiment}
+              <p className="text-sm leading-relaxed text-zinc-700">
+                {insight.hiddenRisk}
+              </p>
+            </div>
+
+            <div>
+              <div className="mb-2 text-xs font-bold uppercase tracking-wide text-zinc-400">
+                Что уточнить
+              </div>
+
+              <div className="space-y-3">
+                {insight.questionsToAsk.map((item, index) => (
+                  <div key={`${item}-${index}`} className="flex gap-3 text-sm">
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-bold text-zinc-500">
+                      {index + 1}
+                    </span>
+
+                    <span className="leading-relaxed text-zinc-700">
+                      {item}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
 
             <div>
               <div className="mb-2 text-xs font-bold uppercase tracking-wide text-zinc-400">
-                Причина рекомендации
+                Чего не делать
               </div>
 
-              <p className="text-sm leading-relaxed text-zinc-600">
-                {data.statusReason}
-              </p>
+              <div className="space-y-3">
+                {insight.dontDo.map((item, index) => (
+                  <div key={`${item}-${index}`} className="flex gap-3 text-sm">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-red-400" />
+                    <span className="leading-relaxed text-zinc-700">
+                      {item}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {data.statusSuggestion === "waiting_customer" ? (
-              <div className="rounded-[24px] bg-blue-50 p-4">
-                <div className="text-sm font-semibold text-blue-700">
-                  Сейчас ждём клиента
+            <div className="rounded-[24px] bg-zinc-50 p-4">
+              <div className="mb-3 text-xs font-bold uppercase tracking-wide text-zinc-400">
+                Другие варианты ответа
+              </div>
+
+              <div className="space-y-4 text-sm leading-relaxed text-zinc-700">
+                <div>
+                  <div className="mb-1 font-semibold text-zinc-900">
+                    Коротко
+                  </div>
+                  {insight.shortReply}
                 </div>
 
-                <p className="mt-2 text-sm leading-relaxed text-blue-600">
-                  Последнее действие выполнено оператором. Лучше не дублировать
-                  ответ без новой информации.
-                </p>
-              </div>
-            ) : null}
-
-            {data.statusSuggestion === "waiting_operator" ? (
-              <div className="rounded-[24px] bg-amber-50 p-4">
-                <div className="text-sm font-semibold text-amber-700">
-                  Нужна реакция оператора
+                <div>
+                  <div className="mb-1 font-semibold text-zinc-900">
+                    Мягче
+                  </div>
+                  {insight.warmReply}
                 </div>
 
-                <p className="mt-2 text-sm leading-relaxed text-amber-700">
-                  Клиент ожидает ответа или конкретного следующего шага.
-                </p>
+                <div>
+                  <div className="mb-1 font-semibold text-zinc-900">
+                    Официально
+                  </div>
+                  {insight.formalReply}
+                </div>
               </div>
-            ) : null}
+            </div>
           </div>
         ) : null}
       </div>
