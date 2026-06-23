@@ -1,70 +1,73 @@
 export function PainSection() {
-  const items = [
+  const steps = [
     {
-      title: "Обращения теряются",
+      title: "Клиент сканирует QR",
       description:
-        "Письма, мессенджеры и чаты живут отдельно. Команда тратит время не на помощь клиентам, а на поиск информации.",
+        "На визитке, объявлении, машине, двери мастерской или в социальных сетях.",
     },
     {
-      title: "Контекст приходится собирать вручную",
+      title: "Выбирает канал",
       description:
-        "Чтобы разобраться в ситуации, оператор открывает несколько вкладок и перечитывает длинные переписки.",
+        "MAX, Telegram или почта — только чтобы получить личную ссылку на диалог.",
     },
     {
-      title: "Рутина съедает рабочий день",
+      title: "Пишет сообщение",
       description:
-        "Одни и те же вопросы повторяются снова и снова, а сотрудники отвечают на них вручную.",
+        "Описывает задачу, прикрепляет фотографии и отправляет обращение мастеру.",
+    },
+    {
+      title: "Возвращается в чат",
+      description:
+        "Когда мастер ответит, клиент получит уведомление и откроет тот же диалог.",
     },
   ];
 
   return (
     <section
-      id="pain"
+      id="how"
       className="border-y border-black/[0.04] bg-[#fafafa] py-28"
     >
       <div className="mx-auto max-w-7xl px-6">
         <div className="mx-auto mb-20 max-w-3xl text-center">
           <div className="mb-5 text-sm font-semibold uppercase tracking-[0.25em] text-zinc-400">
-            Каждый рабочий день
+            Как это работает
           </div>
 
           <h2 className="mb-6 text-4xl font-black tracking-tight md:text-6xl">
-            Поддержка не должна
+            Один QR-код становится
             <br />
-            превращаться в хаос.
+            каналом связи с клиентом.
           </h2>
 
           <p className="text-lg leading-8 text-zinc-500">
-            Большинство команд работают сразу в нескольких окнах, теряют
-            контекст и постоянно повторяют одни и те же действия. PulseDesk
-            помогает вернуть порядок и сосредоточиться на самом важном —
-            общении с клиентом.
+            Клиенту не нужно устанавливать приложение. Мастеру не нужно
+            заводить сайт. Вся переписка сохраняется в Pulse.
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
-          {items.map((item) => (
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+          {steps.map((step, index) => (
             <div
-              key={item.title}
+              key={step.title}
               className="rounded-3xl border border-black/[0.04] bg-white p-8 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
             >
-              <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 text-lg font-bold">
-                •
+              <div className="mb-7 flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 text-lg font-black">
+                {index + 1}
               </div>
 
-              <h3 className="mb-3 text-xl font-bold">{item.title}</h3>
+              <h3 className="mb-3 text-xl font-bold tracking-tight">
+                {step.title}
+              </h3>
 
-              <p className="leading-7 text-zinc-500">
-                {item.description}
-              </p>
+              <p className="leading-7 text-zinc-500">{step.description}</p>
             </div>
           ))}
         </div>
 
-        <div className="mx-auto mt-16 max-w-4xl rounded-[32px] bg-black px-10 py-12 text-center text-white">
+        <div className="mx-auto mt-16 max-w-5xl rounded-[36px] bg-black px-10 py-12 text-center text-white">
           <p className="text-2xl font-semibold leading-relaxed md:text-3xl">
-            PulseDesk объединяет обращения, историю переписки и помощь
-            искусственного интеллекта в одном спокойном рабочем пространстве.
+            Главное: мастер может ответить позже, а клиент всё равно увидит
+            ответ и вернётся в тот же диалог.
           </p>
         </div>
       </div>

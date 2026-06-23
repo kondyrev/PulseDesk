@@ -10,20 +10,18 @@ export function Footer() {
               </div>
 
               <div>
-                <div className="text-xl font-bold tracking-tight">
-                  PulseDesk
-                </div>
+                <div className="text-xl font-bold tracking-tight">Pulse</div>
 
                 <div className="text-sm text-zinc-500">
-                  Рабочее пространство поддержки
+                  Заявки по QR-коду
                 </div>
               </div>
             </div>
 
             <p className="leading-7 text-zinc-500">
-              PulseDesk помогает командам поддержки работать спокойно,
-              объединяя обращения, историю общения и возможности
-              искусственного интеллекта в одном месте.
+              Pulse помогает мастерам, самозанятым и небольшим командам
+              принимать обращения клиентов через QR-код, цифровую страницу и
+              аккуратный диалог.
             </p>
           </div>
 
@@ -35,10 +33,17 @@ export function Footer() {
 
               <div className="space-y-3">
                 <a
-                  href="#features"
+                  href="#how"
                   className="block text-zinc-600 transition hover:text-black"
                 >
-                  Возможности
+                  Как работает
+                </a>
+
+                <a
+                  href="#for"
+                  className="block text-zinc-600 transition hover:text-black"
+                >
+                  Для кого
                 </a>
 
                 <a
@@ -46,13 +51,6 @@ export function Footer() {
                   className="block text-zinc-600 transition hover:text-black"
                 >
                   Тарифы
-                </a>
-
-                <a
-                  href="#faq"
-                  className="block text-zinc-600 transition hover:text-black"
-                >
-                  Вопросы
                 </a>
               </div>
             </div>
@@ -67,7 +65,7 @@ export function Footer() {
                   href="/dashboard"
                   className="block text-zinc-600 transition hover:text-black"
                 >
-                  Создать рабочее пространство
+                  Получить QR-код
                 </a>
 
                 <a
@@ -82,10 +80,10 @@ export function Footer() {
         </div>
 
         <div className="mt-16 flex flex-col items-center justify-between gap-4 border-t border-black/[0.05] pt-8 text-sm text-zinc-500 md:flex-row">
-          <div>© 2026 PulseDesk. Все права защищены.</div>
+          <div>© 2026 Pulse. Все права защищены.</div>
 
           <div className="text-center md:text-right">
-            Сделано для команд, которые ценят порядок, скорость и спокойную работу.
+            Сделано для мастеров, которым важны заявки, порядок и спокойная работа.
           </div>
         </div>
       </div>

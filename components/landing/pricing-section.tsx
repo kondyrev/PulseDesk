@@ -22,7 +22,7 @@ function PricingCard({
     return (
       <div className="relative scale-[1.03] overflow-hidden rounded-[36px] bg-black p-10 text-white shadow-2xl">
         <div className="absolute right-6 top-6 rounded-full bg-white px-4 py-2 text-xs font-bold text-black">
-          Оптимальный выбор
+          Для стабильной работы
         </div>
 
         <div className="mb-5 font-medium text-zinc-400">{name}</div>
@@ -35,9 +35,12 @@ function PricingCard({
           ))}
         </ul>
 
-        <button className="w-full rounded-3xl bg-white py-5 font-semibold text-black transition hover:opacity-90">
+        <a
+          href="/dashboard"
+          className="block w-full rounded-3xl bg-white py-5 text-center font-semibold text-black transition hover:opacity-90"
+        >
           {button}
-        </button>
+        </a>
       </div>
     );
   }
@@ -54,9 +57,12 @@ function PricingCard({
         ))}
       </ul>
 
-      <button className="w-full rounded-3xl bg-zinc-100 py-5 font-semibold transition hover:bg-zinc-200">
+      <a
+        href="/dashboard"
+        className="block w-full rounded-3xl bg-zinc-100 py-5 text-center font-semibold transition hover:bg-zinc-200"
+      >
         {button}
-      </button>
+      </a>
     </PremiumCard>
   );
 }
@@ -69,12 +75,12 @@ export function PricingSection() {
           eyebrow="Тарифы"
           title={
             <>
-              Начните спокойно.
+              Начать можно бесплатно.
               <br />
-              Растите без хаоса.
+              Расти — когда появятся заявки.
             </>
           }
-          description="PulseDesk подойдёт небольшой команде поддержки сегодня и сможет расти вместе с вашим бизнесом завтра."
+          description="Pulse не требует сложного внедрения. Сначала QR-код и цифровая страница, затем больше обращений, уведомлений и командная работа."
           align="center"
           className="mb-24"
         />
@@ -83,43 +89,42 @@ export function PricingSection() {
           <PricingCard
             name="Старт"
             price="0 ₽"
-            description="Для первых обращений и знакомства с продуктом"
+            description="Для первого QR-кода и проверки идеи"
             button="Начать бесплатно"
             features={[
-              "До 2 сотрудников",
-              "Единая лента обращений",
-              "Базовая история переписки",
-              "Виджет для сайта",
+              "Личный QR-код",
+              "Цифровая страница мастера",
+              "До 20 обращений",
+              "Уведомления на почту",
+            ]}
+          />
+
+          <PricingCard
+            name="Мастер"
+            price="299 ₽"
+            description="За спокойный приём заявок каждый месяц"
+            button="Выбрать тариф"
+            popular
+            features={[
+              "Безлимитные обращения",
+              "MAX и Telegram уведомления",
+              "Фотографии в диалогах",
+              "История обращений",
+              "Настройка страницы мастера",
             ]}
           />
 
           <PricingCard
             name="Команда"
-            price="2 990 ₽"
-            description="За рабочее пространство в месяц"
-            button="Попробовать бесплатно"
-            popular
+            price="990 ₽"
+            description="Когда обращений становится больше"
+            button="Подключить команду"
             features={[
-              "Без ограничений по сотрудникам",
+              "Несколько сотрудников",
+              "Распределение обращений",
               "ИИ-помощник для ответов",
-              "Краткое содержание обращений",
-              "Определение настроения клиента",
-              "Приоритеты и статусы",
-              "Аналитика работы поддержки",
-            ]}
-          />
-
-          <PricingCard
-            name="Бизнес"
-            price="По запросу"
-            description="Для компаний с особыми требованиями"
-            button="Обсудить внедрение"
-            features={[
-              "Индивидуальные сценарии работы",
-              "Расширенная автоматизация",
-              "Отдельные правила доступа",
-              "Помощь с внедрением",
-              "Приоритетная поддержка",
+              "Виджет для сайта",
+              "Расширенная история",
             ]}
           />
         </div>
