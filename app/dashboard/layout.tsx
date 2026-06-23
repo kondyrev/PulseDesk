@@ -1,6 +1,8 @@
+import { redirect } from "next/navigation";
+
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
+import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -10,29 +12,30 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
+  const user = await getCurrentUser();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/login");
+  }
 
   let unreadTicketsCount = 0;
 
-  if (user) {
-    const { data: membership } = await supabase
-      .from("workspace_members")
-      .select("workspace_id")
-      .eq("profile_id", user.id)
-      .single();
+  const membership = await prisma.workspaceMember.findFirst({
+    where: {
+      userId: user.id,
+    },
+    select: {
+      workspaceId: true,
+    },
+  });
 
-    if (membership?.workspace_id) {
-      unreadTicketsCount = await prisma.ticket.count({
-        where: {
-          workspaceId: membership.workspace_id,
-          status: "waiting_operator",
-        },
-      });
-    }
+  if (membership?.workspaceId) {
+    unreadTicketsCount = await prisma.ticket.count({
+      where: {
+        workspaceId: membership.workspaceId,
+        status: "waiting_operator",
+      },
+    });
   }
 
   return (
