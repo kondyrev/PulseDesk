@@ -5,7 +5,7 @@ import { ArrowUpRight, Inbox } from "lucide-react";
 
 import { TicketsAutoRefresh } from "@/components/dashboard/tickets/tickets-auto-refresh";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -113,24 +113,22 @@ export default async function TicketsPage({
   const activeFilter = getFilter(resolvedSearchParams.status);
   const showClosed = resolvedSearchParams.showClosed === "true";
 
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     return null;
   }
 
-  const { data: membership } = await supabase
-    .from("workspace_members")
-    .select("workspace_id")
-    .eq("profile_id", user.id)
-    .limit(1)
-    .single();
+  const membership = await prisma.workspaceMember.findFirst({
+    where: {
+      userId: user.id,
+    },
+    select: {
+      workspaceId: true,
+    },
+  });
 
-  const workspaceId = membership?.workspace_id;
+  const workspaceId = membership?.workspaceId;
 
   const tickets = workspaceId
     ? await prisma.ticket.findMany({
