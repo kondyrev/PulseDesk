@@ -1,7 +1,12 @@
+import { randomBytes } from "crypto";
+
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 
 import { prisma } from "@/lib/prisma";
+
+const SESSION_COOKIE_NAME = "pulsedesk_session";
+const SESSION_DAYS = 30;
 
 export async function POST(request: Request) {
   try {
@@ -28,10 +33,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const passwordValid = await bcrypt.compare(
-      password,
-      user.passwordHash
-    );
+    const passwordValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!passwordValid) {
       return NextResponse.json(
@@ -40,11 +42,34 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({
+    const token = randomBytes(32).toString("hex");
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + SESSION_DAYS);
+
+    await prisma.session.create({
+      data: {
+        token,
+        userId: user.id,
+        expiresAt,
+      },
+    });
+
+    const response = NextResponse.json({
       success: true,
       userId: user.id,
       email: user.email,
     });
+
+    response.cookies.set(SESSION_COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      expires: expiresAt,
+    });
+
+    return response;
   } catch (error) {
     console.error("LOGIN ERROR:", error);
 
