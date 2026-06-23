@@ -1,8 +1,8 @@
 import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 
+import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
 
 function normalizeColor(value: string) {
   const color = value.trim();
@@ -19,27 +19,22 @@ function normalizePosition(value: string) {
 }
 
 async function getCurrentWorkspaceId() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     return null;
   }
 
-  const { data: membership } = await supabase
-    .from("workspace_members")
-    .select("workspace_id")
-    .eq("profile_id", user.id)
-    .single();
+  const membership = await prisma.workspaceMember.findFirst({
+    where: {
+      userId: user.id,
+    },
+    select: {
+      workspaceId: true,
+    },
+  });
 
-  if (!membership?.workspace_id) {
-    return null;
-  }
-
-  return membership.workspace_id as string;
+  return membership?.workspaceId || null;
 }
 
 export async function GET() {
@@ -49,17 +44,6 @@ export async function GET() {
     if (!workspaceId) {
       return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
     }
-
-    await prisma.workspace.upsert({
-      where: {
-        id: workspaceId,
-      },
-      update: {},
-      create: {
-        id: workspaceId,
-        name: "PulseDesk workspace",
-      },
-    });
 
     const settings = await prisma.widgetSetting.upsert({
       where: {
@@ -82,7 +66,9 @@ export async function GET() {
       ok: true,
       settings,
     });
-  } catch {
+  } catch (error) {
+    console.error("GET WIDGET SETTINGS ERROR:", error);
+
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
   }
 }
@@ -106,17 +92,6 @@ export async function PATCH(request: Request) {
     const primaryColor = normalizeColor(String(body.primaryColor || ""));
     const position = normalizePosition(String(body.position || ""));
     const isEnabled = Boolean(body.isEnabled);
-
-    await prisma.workspace.upsert({
-      where: {
-        id: workspaceId,
-      },
-      update: {},
-      create: {
-        id: workspaceId,
-        name: "PulseDesk workspace",
-      },
-    });
 
     const existingSettings = await prisma.widgetSetting.findUnique({
       where: {
@@ -153,7 +128,9 @@ export async function PATCH(request: Request) {
       ok: true,
       settings,
     });
-  } catch {
+  } catch (error) {
+    console.error("PATCH WIDGET SETTINGS ERROR:", error);
+
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
   }
 }
