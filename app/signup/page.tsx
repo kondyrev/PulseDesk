@@ -4,11 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/client";
-
 export default function SignupPage() {
-  const supabase = createClient();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -19,22 +15,27 @@ export default function SignupPage() {
 
     setLoading(true);
 
-    const { error } = await supabase.auth.signUp({
+    const response = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
         email,
         password,
-        options: {
-            emailRedirectTo: "http://localhost:3000/dashboard",
-        },
-        });
+      }),
+    });
+
+    const data = await response.json();
 
     setLoading(false);
 
-    if (error) {
-      alert(error.message);
+    if (!response.ok) {
+      alert(data.error || "Не удалось создать аккаунт");
       return;
     }
 
-    window.location.href = "/dashboard";
+    window.location.href = "/login";
   }
 
   return (
@@ -79,7 +80,7 @@ export default function SignupPage() {
               <input
                 type="password"
                 required
-                placeholder="Минимум 6 символов"
+                placeholder="Минимум 8 символов"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="h-14 w-full rounded-2xl border border-black/[0.06] bg-white px-5 outline-none transition focus:border-black"
@@ -91,17 +92,13 @@ export default function SignupPage() {
               className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-black text-sm font-semibold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
             >
               {loading ? "Создаем..." : "Создать аккаунт"}
-
               {!loading && <ArrowRight className="h-4 w-4" />}
             </button>
           </form>
 
           <div className="mt-8 text-center text-sm text-zinc-500">
             Уже есть аккаунт?{" "}
-            <Link
-              href="/login"
-              className="font-semibold text-black hover:opacity-70"
-            >
+            <Link href="/login" className="font-semibold text-black hover:opacity-70">
               Войти
             </Link>
           </div>
