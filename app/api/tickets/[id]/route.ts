@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
 
 const allowedStatuses = new Set([
   "new",
@@ -15,23 +15,22 @@ const allowedStatuses = new Set([
 const allowedPriorities = new Set(["low", "normal", "high", "urgent"]);
 
 async function getCurrentWorkspaceId() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     return null;
   }
 
-  const { data: membership } = await supabase
-    .from("workspace_members")
-    .select("workspace_id")
-    .eq("profile_id", user.id)
-    .single();
+  const membership = await prisma.workspaceMember.findFirst({
+    where: {
+      userId: user.id,
+    },
+    select: {
+      workspaceId: true,
+    },
+  });
 
-  return membership?.workspace_id || null;
+  return membership?.workspaceId || null;
 }
 
 export async function PATCH(
