@@ -4,11 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/client";
-
 export default function LoginPage() {
-  const supabase = createClient();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -19,15 +15,23 @@ export default function LoginPage() {
 
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email,
+        password,
+      }),
     });
+
+    const data = await response.json();
 
     setLoading(false);
 
-    if (error) {
-      alert(error.message);
+    if (!response.ok) {
+      alert(data.error || "Не удалось войти");
       return;
     }
 
@@ -48,7 +52,7 @@ export default function LoginPage() {
             </h1>
 
             <p className="mt-3 text-zinc-500 leading-relaxed">
-              Войдите в PulseDesk workspace.
+              Войдите в PulseDesk.
             </p>
           </div>
 
@@ -88,17 +92,13 @@ export default function LoginPage() {
               className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-black text-sm font-semibold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
             >
               {loading ? "Входим..." : "Войти"}
-
               {!loading && <ArrowRight className="h-4 w-4" />}
             </button>
           </form>
 
           <div className="mt-8 text-center text-sm text-zinc-500">
             Нет аккаунта?{" "}
-            <Link
-              href="/signup"
-              className="font-semibold text-black hover:opacity-70"
-            >
+            <Link href="/signup" className="font-semibold text-black hover:opacity-70">
               Создать
             </Link>
           </div>
