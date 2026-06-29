@@ -22,6 +22,7 @@ model User {
   assignedTickets Ticket[]          @relation("AssignedTickets")
   readStates      TicketReadState[]
   sessions        Session[]
+  partnerEvents   PartnerEvent[]
 
   @@map("users")
 }
@@ -48,9 +49,12 @@ model Workspace {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members       WorkspaceMember[]
-  tickets       Ticket[]
-  widgetSetting WidgetSetting?
+  members                WorkspaceMember[]
+  tickets                Ticket[]
+  widgetSetting          WidgetSetting?
+  qrCodes                QrCode[]
+  partnerRecommendations PartnerRecommendation[]
+  partnerEvents          PartnerEvent[]
 
   @@map("workspaces")
 }
@@ -123,6 +127,7 @@ enum TicketPriority {
 
 enum TicketSource {
   widget
+  qr
   email
   manual
 }
@@ -191,4 +196,233 @@ model WidgetSetting {
 enum WidgetPosition {
   bottom_right
   bottom_left
+}
+
+model QrCode {
+  id String @id @default(uuid())
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  publicKey String @unique
+
+  title       String  @default("Основной QR-код")
+  description String?
+
+  isPrimary Boolean @default(false)
+  isActive  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workspaceId])
+  @@map("qr_codes")
+}
+
+model PartnerCategory {
+  id String @id @default(uuid())
+
+  code        String  @unique
+  name        String
+  description String?
+
+  isActive Boolean @default(true)
+
+  partners  Partner[]
+  campaigns PartnerCampaign[]
+  intents   Intent[]
+  events    PartnerEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("partner_categories")
+}
+
+model Partner {
+  id String @id @default(uuid())
+
+  categoryId String?
+  category   PartnerCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  name        String
+  description String?
+  websiteUrl  String?
+  logoUrl     String?
+
+  isActive Boolean @default(true)
+
+  campaigns PartnerCampaign[]
+  events    PartnerEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId])
+  @@map("partners")
+}
+
+model PartnerPlacement {
+  id String @id @default(uuid())
+
+  code        String  @unique
+  name        String
+  description String?
+
+  isActive Boolean @default(true)
+
+  campaigns PartnerCampaign[]
+  events    PartnerEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("partner_placements")
+}
+
+model Intent {
+  id String @id @default(uuid())
+
+  categoryId String?
+  category   PartnerCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  code        String  @unique
+  name        String
+  description String?
+
+  isActive Boolean @default(true)
+
+  campaigns PartnerCampaign[]
+  events    PartnerEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId])
+  @@map("intents")
+}
+
+model PartnerCampaign {
+  id String @id @default(uuid())
+
+  partnerId String
+  partner   Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  categoryId String?
+  category   PartnerCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  placementId String?
+  placement   PartnerPlacement? @relation(fields: [placementId], references: [id], onDelete: SetNull)
+
+  intentId String?
+  intent   Intent? @relation(fields: [intentId], references: [id], onDelete: SetNull)
+
+  title       String
+  description String?
+
+  targetAudience String?
+
+  startsAt DateTime?
+  endsAt   DateTime?
+
+  isActive Boolean @default(true)
+
+  recommendations PartnerRecommendation[]
+  events          PartnerEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([partnerId])
+  @@index([categoryId])
+  @@index([placementId])
+  @@index([intentId])
+  @@map("partner_campaigns")
+}
+
+model PartnerRecommendation {
+  id String @id @default(uuid())
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  partnerCampaignId String
+  partnerCampaign   PartnerCampaign @relation(fields: [partnerCampaignId], references: [id], onDelete: Cascade)
+
+  status PartnerRecommendationStatus @default(shown)
+
+  shownAt     DateTime  @default(now())
+  clickedAt   DateTime?
+  dismissedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workspaceId])
+  @@index([partnerCampaignId])
+  @@map("partner_recommendations")
+}
+
+enum PartnerRecommendationStatus {
+  shown
+  clicked
+  dismissed
+}
+
+model PartnerEvent {
+  id String @id @default(uuid())
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  partnerId String?
+  partner   Partner? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+
+  campaignId String?
+  campaign   PartnerCampaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  categoryId String?
+  category   PartnerCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  placementId String?
+  placement   PartnerPlacement? @relation(fields: [placementId], references: [id], onDelete: SetNull)
+
+  intentId String?
+  intent   Intent? @relation(fields: [intentId], references: [id], onDelete: SetNull)
+
+  eventType PartnerEventType
+
+  categoryCode  String?
+  placementCode String?
+  intentCode    String?
+
+  source   String?
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([workspaceId])
+  @@index([userId])
+  @@index([partnerId])
+  @@index([campaignId])
+  @@index([categoryId])
+  @@index([placementId])
+  @@index([intentId])
+  @@index([eventType])
+  @@index([categoryCode])
+  @@index([placementCode])
+  @@index([intentCode])
+  @@index([createdAt])
+  @@map("partner_events")
+}
+
+enum PartnerEventType {
+  intent_detected
+  recommendation_shown
+  recommendation_click
+  lead_created
+  conversion_reported
 }
