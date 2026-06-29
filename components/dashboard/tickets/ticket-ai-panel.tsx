@@ -10,16 +10,9 @@ import {
   Wand2,
 } from "lucide-react";
 
-type OperatorInsight = {
-  signal: string;
-  hiddenRisk: string;
-  bestReply: string;
-  shortReply: string;
-  warmReply: string;
-  formalReply: string;
-  questionsToAsk: string[];
-  dontDo: string[];
-  nextStep: string;
+type PilotInsight = {
+  summary: string;
+  suggestion: string;
 };
 
 export function TicketAiPanel({
@@ -31,11 +24,10 @@ export function TicketAiPanel({
 }) {
   const refreshTimeoutRef = useRef<number | null>(null);
 
-  const [insight, setInsight] = useState<OperatorInsight | null>(null);
+  const [insight, setInsight] = useState<PilotInsight | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [detailsOpen, setDetailsOpen] = useState(false);
   const [error, setError] = useState("");
 
   const loadInsight = useCallback(
@@ -49,18 +41,32 @@ export function TicketAiPanel({
       setError("");
 
       try {
-        const response = await fetch(`/api/tickets/${ticketId}/ai-summary`, {
-          method: "POST",
-        });
+        const [summaryResponse, replyResponse] = await Promise.all([
+          fetch(`/api/tickets/${ticketId}/ai-summary`, {
+            method: "POST",
+          }),
+          fetch(`/api/tickets/${ticketId}/ai-reply`, {
+            method: "POST",
+          }),
+        ]);
 
-        const result = await response.json();
+        const summaryData = await summaryResponse.json();
+        const replyData = await replyResponse.json();
 
-        if (!response.ok || !result.ok) {
-          setError(result.error || "Не удалось подготовить подсказки.");
+        if (!summaryResponse.ok || !summaryData.ok) {
+          setError(summaryData.error || "Не удалось загрузить сводку.");
           return;
         }
 
-        setInsight(result.insight);
+        if (!replyResponse.ok || !replyData.ok) {
+          setError(replyData.error || "Не удалось подготовить ответ.");
+          return;
+        }
+
+        setInsight({
+          summary: summaryData.summary,
+          suggestion: replyData.suggestion,
+        });
       } catch {
         setError("Не удалось связаться со Вторым пилотом.");
       } finally {
@@ -103,21 +109,21 @@ export function TicketAiPanel({
   }, [loadInsight, ticketId]);
 
   function insertReply() {
-    if (!insight?.bestReply || isClosed) return;
+    if (!insight?.suggestion || isClosed) return;
 
     window.dispatchEvent(
       new CustomEvent("pulsedesk:insert-ai-reply", {
         detail: {
-          text: insight.bestReply,
+          text: insight.suggestion,
         },
       })
     );
   }
 
   async function copyReply() {
-    if (!insight?.bestReply) return;
+    if (!insight?.suggestion) return;
 
-    await navigator.clipboard.writeText(insight.bestReply);
+    await navigator.clipboard.writeText(insight.suggestion);
 
     setCopied(true);
 
@@ -137,7 +143,7 @@ export function TicketAiPanel({
           <div>
             <div className="font-bold tracking-tight">Второй пилот</div>
             <div className="text-xs text-zinc-500">
-              ищет лучший следующий шаг
+              анализирует обращение
             </div>
           </div>
         </div>
@@ -185,7 +191,7 @@ export function TicketAiPanel({
             <div>
               <div className="font-bold tracking-tight">Второй пилот</div>
               <div className="text-xs text-zinc-500">
-                1 мысль · 1 действие · 1 ответ
+                кратко · спокойно · по делу
               </div>
             </div>
           </div>
@@ -203,23 +209,13 @@ export function TicketAiPanel({
         </div>
 
         <div className="rounded-[26px] bg-zinc-950 p-5 text-white">
-          <div className="mb-2 text-xs font-bold uppercase tracking-wide text-white/40">
-            Сигнал
-          </div>
-
-          <p className="text-sm leading-relaxed text-white/90">
-            {insight.signal}
-          </p>
-        </div>
-
-        <div className="mt-4 rounded-[26px] bg-zinc-50 p-5">
-          <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-zinc-400">
+          <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-white/40">
             <Target className="h-4 w-4" />
-            Следующий шаг
+            Что происходит
           </div>
 
-          <p className="text-sm leading-relaxed text-zinc-800">
-            {insight.nextStep}
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/90">
+            {insight.summary}
           </p>
         </div>
       </div>
@@ -228,13 +224,13 @@ export function TicketAiPanel({
         <div className="mb-4 flex items-center gap-2">
           <Wand2 className="h-4 w-4 text-zinc-400" />
           <div className="text-sm font-bold text-zinc-900">
-            Лучший ответ сейчас
+            Предлагаемый ответ
           </div>
         </div>
 
         <div className="rounded-[26px] bg-zinc-50 p-5">
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">
-            {insight.bestReply}
+            {insight.suggestion}
           </p>
         </div>
 
@@ -254,102 +250,6 @@ export function TicketAiPanel({
             {copied ? "Готово" : <Clipboard className="h-4 w-4" />}
           </button>
         </div>
-      </div>
-
-      <div className="rounded-[32px] border border-black/5 bg-white p-6 shadow-sm">
-        <button
-          type="button"
-          onClick={() => setDetailsOpen((value) => !value)}
-          className="flex w-full items-center justify-between text-left"
-        >
-          <span className="text-sm font-bold text-zinc-900">
-            Почему пилот так думает
-          </span>
-
-          <span className="text-xs font-semibold text-zinc-400">
-            {detailsOpen ? "Скрыть" : "Показать"}
-          </span>
-        </button>
-
-        {detailsOpen ? (
-          <div className="mt-5 space-y-5">
-            <div>
-              <div className="mb-2 text-xs font-bold uppercase tracking-wide text-red-400">
-                Скрытый риск
-              </div>
-
-              <p className="text-sm leading-relaxed text-zinc-700">
-                {insight.hiddenRisk}
-              </p>
-            </div>
-
-            <div>
-              <div className="mb-2 text-xs font-bold uppercase tracking-wide text-zinc-400">
-                Что уточнить
-              </div>
-
-              <div className="space-y-3">
-                {insight.questionsToAsk.map((item, index) => (
-                  <div key={`${item}-${index}`} className="flex gap-3 text-sm">
-                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-bold text-zinc-500">
-                      {index + 1}
-                    </span>
-
-                    <span className="leading-relaxed text-zinc-700">
-                      {item}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <div className="mb-2 text-xs font-bold uppercase tracking-wide text-zinc-400">
-                Чего не делать
-              </div>
-
-              <div className="space-y-3">
-                {insight.dontDo.map((item, index) => (
-                  <div key={`${item}-${index}`} className="flex gap-3 text-sm">
-                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-red-400" />
-                    <span className="leading-relaxed text-zinc-700">
-                      {item}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-[24px] bg-zinc-50 p-4">
-              <div className="mb-3 text-xs font-bold uppercase tracking-wide text-zinc-400">
-                Другие варианты ответа
-              </div>
-
-              <div className="space-y-4 text-sm leading-relaxed text-zinc-700">
-                <div>
-                  <div className="mb-1 font-semibold text-zinc-900">
-                    Коротко
-                  </div>
-                  {insight.shortReply}
-                </div>
-
-                <div>
-                  <div className="mb-1 font-semibold text-zinc-900">
-                    Мягче
-                  </div>
-                  {insight.warmReply}
-                </div>
-
-                <div>
-                  <div className="mb-1 font-semibold text-zinc-900">
-                    Официально
-                  </div>
-                  {insight.formalReply}
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : null}
       </div>
     </div>
   );
