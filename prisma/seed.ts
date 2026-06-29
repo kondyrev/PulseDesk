@@ -1,6 +1,14 @@
-import { PrismaClient } from "../src/generated/prisma";
+import "dotenv/config";
+import { Pool } from "pg";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../src/generated/prisma/client";
 
-const prisma = new PrismaClient();
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 async function seedPartnerCategories() {
   const categories = [
@@ -126,13 +134,15 @@ async function seedIntents() {
     {
       code: "business_start",
       name: "Старт бизнеса",
-      description: "Пользователь начинает принимать обращения и искать первых клиентов.",
+      description:
+        "Пользователь начинает принимать обращения и искать первых клиентов.",
       categoryCode: "business_start",
     },
     {
       code: "bank_account",
       name: "Расчётный счёт",
-      description: "Пользователю может понадобиться счёт или банковский продукт.",
+      description:
+        "Пользователю может понадобиться счёт или банковский продукт.",
       categoryCode: "banking",
     },
     {
@@ -144,13 +154,15 @@ async function seedIntents() {
     {
       code: "accounting",
       name: "Бухгалтерия и налоги",
-      description: "Пользователь интересуется налогами, отчётностью или учётом.",
+      description:
+        "Пользователь интересуется налогами, отчётностью или учётом.",
       categoryCode: "accounting",
     },
     {
       code: "edo",
       name: "ЭДО",
-      description: "Пользователю может понадобиться электронный документооборот.",
+      description:
+        "Пользователю может понадобиться электронный документооборот.",
       categoryCode: "edo",
     },
     {
@@ -174,7 +186,8 @@ async function seedIntents() {
     {
       code: "delivery",
       name: "Доставка",
-      description: "Пользователю может понадобиться доставка товаров или документов.",
+      description:
+        "Пользователю может понадобиться доставка товаров или документов.",
       categoryCode: "delivery",
     },
     {
@@ -218,4 +231,5 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
+    await pool.end();
   });
