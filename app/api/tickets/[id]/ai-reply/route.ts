@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 type YandexCompletionResponse = {
   result?: {
@@ -12,11 +13,22 @@ type YandexCompletionResponse = {
   };
 };
 
+async function getCurrentWorkspaceId() {
+  const user = await getCurrentUser();
+
+  if (!user) return null;
+
+  const membership = await prisma.workspaceMember.findFirst({
+    where: { userId: user.id },
+    select: { workspaceId: true },
+  });
+
+  return membership?.workspaceId || null;
+}
+
 export async function POST(
   request: Request,
-  context: {
-    params: Promise<{ id: string }>;
-  }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await context.params;
@@ -32,37 +44,20 @@ export async function POST(
       );
     }
 
-    const supabase = await createClient();
+    const workspaceId = await getCurrentWorkspaceId();
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    if (!workspaceId) {
       return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
     }
 
-    const { data: membership } = await supabase
-      .from("workspace_members")
-      .select("workspace_id")
-      .eq("profile_id", user.id)
-      .single();
-
-    if (!membership) {
-      return NextResponse.json(
-        { error: "Рабочее пространство не найдено" },
-        { status: 403 }
-      );
-    }
-
-    const workspaceId = membership.workspace_id;
-
-    const { data: ticket } = await supabase
-      .from("tickets")
-      .select("id, title, customer_name, customer_email, status, priority, source")
-      .eq("id", id)
-      .eq("workspace_id", workspaceId)
-      .single();
+    const ticket = await prisma.ticket.findFirst({
+      where: { id, workspaceId },
+      include: {
+        messages: {
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    });
 
     if (!ticket) {
       return NextResponse.json(
@@ -71,33 +66,17 @@ export async function POST(
       );
     }
 
-    const { data: messages, error: messagesError } = await supabase
-      .from("ticket_messages")
-      .select("sender_type, content, page_url, created_at")
-      .eq("ticket_id", ticket.id)
-      .eq("workspace_id", workspaceId)
-      .order("created_at", { ascending: true });
-
-    if (messagesError) {
-      return NextResponse.json(
-        { error: messagesError.message },
-        { status: 500 }
-      );
-    }
-
-    const conversation = (messages || [])
+    const conversation = ticket.messages
       .map((message) => {
-        const author =
-          message.sender_type === "operator" ? "Оператор" : "Клиент";
-
+        const author = message.senderType === "operator" ? "Оператор" : "Клиент";
         return `${author}: ${message.content}`;
       })
       .join("\n");
 
     const prompt = `
 Обращение: ${ticket.title}
-Клиент: ${ticket.customer_name || "не указано"}
-Email: ${ticket.customer_email || "не указан"}
+Клиент: ${ticket.customerName || "не указано"}
+Email: ${ticket.customerEmail || "не указан"}
 Источник: ${ticket.source || "не указан"}
 Приоритет: ${ticket.priority || "не указан"}
 
@@ -172,7 +151,9 @@ ${conversation || "Сообщений пока нет."}
       ok: true,
       suggestion,
     });
-  } catch {
+  } catch (error) {
+    console.error("AI reply error:", error);
+
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
   }
 }
