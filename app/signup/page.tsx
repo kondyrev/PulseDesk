@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, QrCode } from "lucide-react";
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
@@ -35,24 +35,25 @@ export default function SignupPage() {
       return;
     }
 
-    window.location.href = "/login";
+    window.location.href = data.redirectTo || "/welcome";
   }
 
   return (
-    <main className="min-h-screen bg-[#f5f5f7] flex items-center justify-center p-6">
+    <main className="flex min-h-screen items-center justify-center bg-[#f5f5f7] p-6">
       <div className="w-full max-w-md">
         <div className="rounded-[40px] border border-black/[0.04] bg-white p-10 shadow-sm">
           <div className="mb-10">
-            <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-3xl bg-black text-xl font-black text-white shadow-lg">
-              P
+            <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-3xl bg-black text-white shadow-lg">
+              <QrCode className="h-7 w-7" />
             </div>
 
             <h1 className="text-4xl font-black tracking-tight">
-              Создать workspace.
+              Получите свой QR-код.
             </h1>
 
-            <p className="mt-3 text-zinc-500 leading-relaxed">
-              Начните работу с PulseDesk.
+            <p className="mt-3 leading-relaxed text-zinc-500">
+              Создайте аккаунт — и ПУЛЬС сразу подготовит персональный QR-код
+              для приёма обращений.
             </p>
           </div>
 
@@ -91,14 +92,17 @@ export default function SignupPage() {
               disabled={loading}
               className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-black text-sm font-semibold text-white shadow-lg transition hover:opacity-90 disabled:opacity-50"
             >
-              {loading ? "Создаем..." : "Создать аккаунт"}
+              {loading ? "Готовим QR-код..." : "Получить QR-код"}
               {!loading && <ArrowRight className="h-4 w-4" />}
             </button>
           </form>
 
           <div className="mt-8 text-center text-sm text-zinc-500">
             Уже есть аккаунт?{" "}
-            <Link href="/login" className="font-semibold text-black hover:opacity-70">
+            <Link
+              href="/login"
+              className="font-semibold text-black hover:opacity-70"
+            >
               Войти
             </Link>
           </div>
