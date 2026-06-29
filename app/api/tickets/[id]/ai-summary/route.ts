@@ -26,7 +26,7 @@ async function getCurrentWorkspaceId() {
   return membership?.workspaceId || null;
 }
 
-export async function GET(
+export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
