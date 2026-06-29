@@ -4,8 +4,8 @@ import { TicketAiPanel } from "@/components/dashboard/tickets/ticket-ai-panel";
 import { TicketMessagesPanel } from "@/components/dashboard/tickets/ticket-messages-panel";
 import { TicketReplyForm } from "@/components/dashboard/tickets/ticket-reply-form";
 import { TicketToolbar } from "@/components/dashboard/tickets/ticket-toolbar";
+import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -30,17 +30,9 @@ function getPriorityLabel(priority: string) {
 }
 
 function getPriorityClass(priority: string) {
-  if (priority === "urgent") {
-    return "bg-red-50 text-red-700 ring-red-100";
-  }
-
-  if (priority === "high") {
-    return "bg-amber-50 text-amber-700 ring-amber-100";
-  }
-
-  if (priority === "low") {
-    return "bg-zinc-100 text-zinc-600 ring-zinc-200";
-  }
+  if (priority === "urgent") return "bg-red-50 text-red-700 ring-red-100";
+  if (priority === "high") return "bg-amber-50 text-amber-700 ring-amber-100";
+  if (priority === "low") return "bg-zinc-100 text-zinc-600 ring-zinc-200";
 
   return "bg-blue-50 text-blue-600 ring-blue-100";
 }
@@ -52,30 +44,29 @@ export default async function TicketDetailsPage({
 }) {
   const { id } = await params;
 
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     return null;
   }
 
-  const { data: membership } = await supabase
-    .from("workspace_members")
-    .select("workspace_id")
-    .eq("profile_id", user.id)
-    .single();
+  const membership = await prisma.workspaceMember.findFirst({
+    where: {
+      userId: user.id,
+    },
+    select: {
+      workspaceId: true,
+    },
+  });
 
-  if (!membership?.workspace_id) {
+  if (!membership?.workspaceId) {
     return null;
   }
 
   const ticket = await prisma.ticket.findFirst({
     where: {
       id,
-      workspaceId: membership.workspace_id,
+      workspaceId: membership.workspaceId,
     },
     include: {
       messages: {
@@ -89,20 +80,6 @@ export default async function TicketDetailsPage({
   if (!ticket) {
     notFound();
   }
-
-  await prisma.user.upsert({
-    where: {
-      id: user.id,
-    },
-    update: {
-      email: user.email || "",
-    },
-    create: {
-      id: user.id,
-      email: user.email || "",
-      passwordHash: "supabase-auth",
-    },
-  });
 
   await prisma.ticketReadState.upsert({
     where: {
