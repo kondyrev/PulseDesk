@@ -2,6 +2,7 @@
 
 import { Check } from "lucide-react";
 
+import BusinessCardTemplatePreview from "./BusinessCardTemplatePreview";
 import type { BusinessCardTemplate } from "./types";
 
 type Props = {
@@ -17,7 +18,7 @@ export default function BusinessCardsGallery({
 }: Props) {
   return (
     <div className="rounded-3xl border border-black/[0.06] p-4">
-      <div className="font-black">Оформление</div>
+      <div className="font-black">Выберите оформление</div>
 
       <div className="mt-3 grid gap-3 sm:grid-cols-3">
         {templates.map((template) => {
@@ -28,21 +29,26 @@ export default function BusinessCardsGallery({
               key={template.id}
               onClick={() => onSelect(template.id)}
               className={[
-                "relative rounded-2xl border p-4 text-left transition",
+                "group relative overflow-hidden rounded-3xl border p-3 text-left transition",
                 selected
-                  ? "border-emerald-400 bg-emerald-50"
-                  : "border-black/[0.08] hover:border-emerald-300 hover:bg-emerald-50/60",
+                  ? "border-emerald-400 bg-emerald-50 shadow-[0_12px_35px_rgba(16,185,129,0.12)]"
+                  : "border-black/[0.08] bg-white hover:border-emerald-300 hover:bg-emerald-50/50",
               ].join(" ")}
             >
               {selected && (
-                <div className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white">
+                <div className="absolute right-3 top-3 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg">
                   <Check className="h-4 w-4" />
                 </div>
               )}
 
-              <div className="text-sm font-black">{template.title}</div>
-              <div className="mt-1 text-xs leading-5 text-zinc-500">
-                {template.subtitle}
+              <BusinessCardTemplatePreview templateId={template.id} />
+
+              <div className="mt-3">
+                <div className="text-sm font-black">{template.title}</div>
+
+                <div className="mt-1 text-xs leading-5 text-zinc-500">
+                  {template.subtitle}
+                </div>
               </div>
 
               {template.id === "modern" && (
