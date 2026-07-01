@@ -42,7 +42,9 @@ export default function ActionModal({
           </button>
         </div>
 
-        {activeAction === "cards" && <BusinessCardsWizard />}
+        {activeAction === "cards" && (
+          <BusinessCardsWizard qrUrl={qrUrl} qrImageUrl={qrImageUrl} />
+        )}
 
         {activeAction === "telegram" && (
           <div className="mt-6">
