@@ -3,12 +3,14 @@
 import { Copy, Download, MessageCircle, X } from "lucide-react";
 
 import BusinessCardsWizard from "@/launch-kit/business-cards/BusinessCardsWizard";
+import type { BusinessCardData } from "@/launch-kit/business-cards";
 
 import type { ActionType } from "../types";
 
 type ActionModalProps = {
   activeAction: ActionType;
   actionTitle: string;
+  businessCardData: BusinessCardData;
   qrUrl: string;
   qrImageUrl: string;
   onClose: () => void;
@@ -42,6 +44,7 @@ ${qrUrl}`;
 export default function ActionModal({
   activeAction,
   actionTitle,
+  businessCardData,
   qrUrl,
   qrImageUrl,
   onClose,
@@ -52,7 +55,12 @@ export default function ActionModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-5 backdrop-blur-sm">
-      <div className="w-full max-w-xl rounded-[32px] bg-white p-6 shadow-2xl">
+      <div
+        className={[
+          "max-h-[92vh] w-full overflow-y-auto rounded-[32px] bg-white p-6 shadow-2xl",
+          activeAction === "cards" ? "max-w-6xl" : "max-w-xl",
+        ].join(" ")}
+      >
         <div className="flex items-start justify-between gap-5">
           <div>
             <div className="text-sm font-black text-emerald-600">
@@ -70,7 +78,7 @@ export default function ActionModal({
         </div>
 
         {activeAction === "cards" && (
-          <BusinessCardsWizard qrUrl={qrUrl} qrImageUrl={qrImageUrl} />
+          <BusinessCardsWizard data={businessCardData} />
         )}
 
         {activeAction === "telegram" && (

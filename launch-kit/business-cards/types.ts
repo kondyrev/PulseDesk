@@ -11,3 +11,9 @@ export type BusinessCardTemplate = {
   partnerReady: boolean;
   order: number;
 };
+
+export type BusinessCardData = {
+  displayName?: string;
+  qrUrl: string;
+  qrImageUrl: string;
+};

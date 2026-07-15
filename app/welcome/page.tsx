@@ -45,6 +45,7 @@ export default async function WelcomePage() {
     include: {
       workspace: {
         include: {
+          widgetSetting: true,
           qrCodes: {
             where: {
               isPrimary: true,
@@ -83,6 +84,21 @@ export default async function WelcomePage() {
   const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(
     qrUrl,
   )}&size=420&margin=2`;
+  const userName = [user.firstName, user.lastName].filter(Boolean).join(" ");
+  const displayName =
+    membership.workspace.widgetSetting?.companyName?.trim() ||
+    userName.trim() ||
+    membership.workspace.name;
 
-  return <WelcomeExperience qrUrl={qrUrl} qrImageUrl={qrImageUrl} />;
+  return (
+    <WelcomeExperience
+      businessCardData={{
+        displayName,
+        qrUrl,
+        qrImageUrl,
+      }}
+      qrUrl={qrUrl}
+      qrImageUrl={qrImageUrl}
+    />
+  );
 }

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import { pilotMessages } from "./data";
 import type { ActionType, PilotState } from "./types";
+import type { BusinessCardData } from "@/launch-kit/business-cards";
 
 import FirstSteps from "./components/FirstSteps";
 import WelcomeQrCard from "./components/WelcomeQrCard";
@@ -11,11 +12,13 @@ import SecondPilotCard from "./components/SecondPilotCard";
 import ActionModal from "./components/ActionModal";
 
 type WelcomeExperienceProps = {
+  businessCardData: BusinessCardData;
   qrUrl: string;
   qrImageUrl: string;
 };
 
 export default function WelcomeExperience({
+  businessCardData,
   qrUrl,
   qrImageUrl,
 }: WelcomeExperienceProps) {
@@ -70,6 +73,7 @@ export default function WelcomeExperience({
         <ActionModal
           activeAction={activeAction}
           actionTitle={actionTitle}
+          businessCardData={businessCardData}
           qrUrl={qrUrl}
           qrImageUrl={qrImageUrl}
           onClose={() => setActiveAction(null)}
