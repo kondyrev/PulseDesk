@@ -12,8 +12,32 @@ type ActionModalProps = {
   qrUrl: string;
   qrImageUrl: string;
   onClose: () => void;
-  onCopy: () => void;
+  onCopyText: (text: string) => void;
 };
+
+function getTelegramMessage(qrUrl: string) {
+  return `Здравствуйте!
+
+Я теперь в ПУЛЬСе 😊
+
+Буду рад помочь.
+
+👇
+
+${qrUrl}`;
+}
+
+function getClientMessage(qrUrl: string) {
+  return `Здравствуйте!
+
+Я теперь в ПУЛЬСе 😊
+
+Буду рад помочь.
+
+👇
+
+${qrUrl}`;
+}
 
 export default function ActionModal({
   activeAction,
@@ -21,8 +45,11 @@ export default function ActionModal({
   qrUrl,
   qrImageUrl,
   onClose,
-  onCopy,
+  onCopyText,
 }: ActionModalProps) {
+  const telegramMessage = getTelegramMessage(qrUrl);
+  const clientMessage = getClientMessage(qrUrl);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-5 backdrop-blur-sm">
       <div className="w-full max-w-xl rounded-[32px] bg-white p-6 shadow-2xl">
@@ -48,20 +75,16 @@ export default function ActionModal({
 
         {activeAction === "telegram" && (
           <div className="mt-6">
-            <div className="rounded-3xl bg-zinc-50 p-5 text-sm leading-7 text-zinc-700">
-              Здравствуйте! Теперь мне можно отправить обращение через ПУЛЬС.
-              Просто откройте ссылку или отсканируйте QR-код:
-              <br />
-              <br />
-              {qrUrl}
+            <div className="whitespace-pre-line rounded-3xl bg-zinc-50 p-5 text-sm leading-7 text-zinc-700">
+              {telegramMessage}
             </div>
 
             <button
-              onClick={onCopy}
+              onClick={() => onCopyText(telegramMessage)}
               className="mt-4 flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-black font-black text-white"
             >
               <Copy className="h-5 w-5" />
-              Скопировать ссылку
+              Скопировать сообщение
             </button>
           </div>
         )}
@@ -97,16 +120,12 @@ export default function ActionModal({
 
         {activeAction === "clients" && (
           <div className="mt-6">
-            <div className="rounded-3xl bg-zinc-50 p-5 text-sm leading-7 text-zinc-700">
-              Добрый день! Теперь вы можете быстро оставить мне обращение через
-              ПУЛЬС:
-              <br />
-              <br />
-              {qrUrl}
+            <div className="whitespace-pre-line rounded-3xl bg-zinc-50 p-5 text-sm leading-7 text-zinc-700">
+              {clientMessage}
             </div>
 
             <button
-              onClick={onCopy}
+              onClick={() => onCopyText(clientMessage)}
               className="mt-4 flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-black font-black text-white"
             >
               <MessageCircle className="h-5 w-5" />

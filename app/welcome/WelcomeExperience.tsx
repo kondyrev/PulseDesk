@@ -1,8 +1,6 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowRight } from "lucide-react";
 
 import { pilotMessages } from "./data";
 import type { ActionType, PilotState } from "./types";
@@ -42,6 +40,10 @@ export default function WelcomeExperience({
     }, 1600);
   }
 
+  async function copyText(text: string) {
+    await navigator.clipboard.writeText(text);
+  }
+
   function openAction(action: ActionType) {
     setActiveAction(action);
     setPilotState(pilotMessages[action]);
@@ -71,7 +73,7 @@ export default function WelcomeExperience({
           qrUrl={qrUrl}
           qrImageUrl={qrImageUrl}
           onClose={() => setActiveAction(null)}
-          onCopy={copyQrUrl}
+          onCopyText={copyText}
         />
       )}
     </main>
