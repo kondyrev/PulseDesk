@@ -30,13 +30,14 @@ export default function WelcomeQrCard({
       </div>
 
       <h1 className="mt-5 max-w-2xl text-5xl font-black leading-[1.02] tracking-tight">
-        Теперь вы готовы <span className="text-emerald-500">принимать</span>{" "}
-        обращения.
+        Ваш ПУЛЬС готов.
+        <br />
+        Покажите его <span className="text-emerald-500">первым клиентам.</span>
       </h1>
 
       <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-500">
-        Мы уже создали для вас персональный QR-код. Покажите его будущим
-        клиентам — и первое обращение может прийти уже сегодня.
+        Покажите QR или отправьте ссылку клиенту — и он сможет написать вам в
+        один клик.
       </p>
 
       <div className="mt-5 flex min-h-0 flex-1 flex-col rounded-[28px] border border-black/[0.06] bg-[#f8f8fa] p-4">
@@ -50,7 +51,10 @@ export default function WelcomeQrCard({
 
         <div className="mt-3 flex items-center justify-center gap-2 text-center text-xs font-medium text-zinc-500">
           <QrCode className="h-4 w-4" />
-          Это ваша персональная ссылка для клиентов
+          <span>
+            Клиент наведёт камеру
+            <br />и сможет написать вам.
+          </span>
         </div>
       </div>
 
@@ -70,7 +74,7 @@ export default function WelcomeQrCard({
           className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-black/[0.08] bg-white px-4 text-sm font-black transition hover:bg-zinc-50"
         >
           <Copy className="h-4 w-4" />
-          {copied ? "Скопировано" : "Копировать"}
+          {copied ? "Скопировано" : "Скопировать ссылку"}
         </button>
 
         <Link
@@ -90,11 +94,11 @@ export default function WelcomeQrCard({
 
           <div>
             <div className="font-black">
-              Сегодня у вас появился первый инструмент
+              Первый шаг уже сделан.
             </div>
             <p className="mt-1 text-sm leading-6 text-zinc-600">
-              Для общения с будущими клиентами. Используйте его — и ваше дело
-              начнёт двигаться вперёд.
+              Расскажите клиентам, что вы теперь в ПУЛЬСе — и ждите первые
+              сообщения.
             </p>
           </div>
         </div>

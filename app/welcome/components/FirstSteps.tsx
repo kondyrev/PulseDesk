@@ -22,7 +22,7 @@ export default function FirstSteps({ onAction }: FirstStepsProps) {
             Ваши первые шаги
           </h2>
           <p className="mt-1 text-sm leading-5 text-white/55">
-            Нажмите на действие — Второй пилот поможет продолжить.
+            Выберите, как вам удобнее рассказать о себе первым клиентам.
           </p>
         </div>
       </div>

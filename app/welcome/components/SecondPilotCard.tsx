@@ -79,7 +79,7 @@ export default function SecondPilotCard({ pilotState }: SecondPilotCardProps) {
           <TypingText text={pilotState.message} />
 
           <div className="mt-3 grid gap-2">
-            {["понять вопрос клиента", "предложить готовый ответ"].map(
+            {["разобрать сообщение клиента", "помочь с ответом"].map(
               (item) => (
                 <div
                   key={item}
