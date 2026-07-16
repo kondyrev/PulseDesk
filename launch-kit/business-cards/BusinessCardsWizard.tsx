@@ -38,7 +38,7 @@ function getCardClasses(style: CardStyle) {
     return {
       card: "border-zinc-950 bg-zinc-950 text-white",
       muted: "text-white/70",
-      qrWrap: "bg-white",
+      qrWrap: "bg-white shadow-[0_10px_24px_rgba(0,0,0,0.2)]",
       link: "text-white/70",
       divider: "border-white/15",
     };
@@ -48,7 +48,7 @@ function getCardClasses(style: CardStyle) {
     return {
       card: "border-zinc-300 bg-[#fffdf8] text-zinc-950",
       muted: "text-zinc-500",
-      qrWrap: "bg-white",
+      qrWrap: "bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]",
       link: "text-zinc-500",
       divider: "border-zinc-300",
     };
@@ -57,10 +57,24 @@ function getCardClasses(style: CardStyle) {
   return {
     card: "border-zinc-200 bg-white text-zinc-950",
     muted: "text-zinc-500",
-    qrWrap: "bg-zinc-50",
+    qrWrap: "bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]",
     link: "text-zinc-500",
     divider: "border-zinc-200",
   };
+}
+
+function getPublicDisplayName(name?: string) {
+  const value = name?.trim();
+
+  if (!value) {
+    return "";
+  }
+
+  if (value.toLowerCase().startsWith("рабочее пространство")) {
+    return "";
+  }
+
+  return value;
 }
 
 function FirstClientCard({
@@ -71,45 +85,27 @@ function FirstClientCard({
   style: CardStyle;
 }) {
   const classes = getCardClasses(style);
+  const displayName = getPublicDisplayName(data.displayName);
 
   return (
     <div
       className={[
-        "flex h-[50mm] w-[90mm] flex-col justify-between rounded-[4mm] border p-[5mm]",
+        "flex h-[50mm] w-[90mm] flex-col items-center justify-between rounded-[4mm] border p-[4mm] text-center",
         classes.card,
       ].join(" ")}
     >
-      <div>
-        {data.displayName ? (
-          <div className="truncate text-[15px] font-black leading-tight">
-            {data.displayName}
+      <div className="min-h-[8mm] w-full">
+        {displayName ? (
+          <div className="truncate text-[13px] font-black leading-tight">
+            {displayName}
           </div>
         ) : null}
-
-        <div className="mt-[2mm] text-[11px] font-bold leading-tight">
-          Я теперь в ПУЛЬСе
-        </div>
       </div>
 
-      <div className="flex items-end justify-between gap-[4mm]">
-        <div className="min-w-0 flex-1">
-          <div
-            className={[
-              "border-t pt-[3mm] text-[10px] font-bold leading-tight",
-              classes.divider,
-            ].join(" ")}
-          >
-            Напишите мне здесь
-          </div>
-
-          <div className={["mt-[2mm] truncate text-[7px]", classes.link].join(" ")}>
-            {data.qrUrl}
-          </div>
-        </div>
-
+      <div className="flex flex-1 items-center justify-center">
         <div
           className={[
-            "flex h-[24mm] w-[24mm] shrink-0 items-center justify-center rounded-[3mm] p-[1.5mm]",
+            "flex h-[29mm] w-[29mm] shrink-0 items-center justify-center rounded-[4mm] p-[2mm]",
             classes.qrWrap,
           ].join(" ")}
         >
@@ -118,6 +114,16 @@ function FirstClientCard({
             alt="QR-код для клиента"
             className="h-full w-full"
           />
+        </div>
+      </div>
+
+      <div>
+        <div className="text-[11px] font-black leading-tight">
+          Я теперь в ПУЛЬСе 😊
+        </div>
+
+        <div className={["mt-[1.5mm] text-[8px] font-bold leading-tight", classes.muted].join(" ")}>
+          Наведите камеру телефона
         </div>
       </div>
     </div>
