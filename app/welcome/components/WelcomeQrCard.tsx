@@ -10,6 +10,8 @@ import {
   Sparkles,
 } from "lucide-react";
 
+import BrandedQrCode from "@/components/brand/BrandedQrCode";
+
 type WelcomeQrCardProps = {
   qrUrl: string;
   qrImageUrl: string;
@@ -42,10 +44,10 @@ export default function WelcomeQrCard({
 
       <div className="mt-5 flex min-h-0 flex-1 flex-col rounded-[28px] border border-black/[0.06] bg-[#f8f8fa] p-4">
         <div className="flex flex-1 items-center justify-center rounded-[24px] bg-white p-4 shadow-[0_18px_50px_rgba(0,0,0,0.08)]">
-          <img
-            src={qrImageUrl}
+          <BrandedQrCode
+            qrImageUrl={qrImageUrl}
             alt="Персональный QR-код ПУЛЬС"
-            className="max-h-[255px] w-auto rounded-3xl"
+            className="aspect-square w-full max-w-[255px] rounded-3xl"
           />
         </div>
 

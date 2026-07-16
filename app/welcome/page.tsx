@@ -83,7 +83,7 @@ export default async function WelcomePage() {
   const qrUrl = `${appUrl}/q/${qrCode.publicKey}`;
   const qrImageUrl = `https://quickchart.io/qr?text=${encodeURIComponent(
     qrUrl,
-  )}&size=420&margin=2`;
+  )}&size=420&margin=2&ecLevel=H`;
   const userName = [user.firstName, user.lastName].filter(Boolean).join(" ");
   const displayName =
     membership.workspace.widgetSetting?.companyName?.trim() ||

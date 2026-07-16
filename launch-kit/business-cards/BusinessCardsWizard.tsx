@@ -3,6 +3,8 @@
 import { Eye, Palette, Printer } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import BrandedQrCode from "@/components/brand/BrandedQrCode";
+
 import type { BusinessCardData } from "./types";
 
 type Props = {
@@ -109,8 +111,8 @@ function FirstClientCard({
             classes.qrWrap,
           ].join(" ")}
         >
-          <img
-            src={data.qrImageUrl}
+          <BrandedQrCode
+            qrImageUrl={data.qrImageUrl}
             alt="QR-код для клиента"
             className="h-full w-full"
           />
